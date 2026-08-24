@@ -6,10 +6,10 @@
    (they're saved per browser in localStorage). */
 
 window.ONYX_DEFAULTS = {
-  SHEET_URL: '',        // https://script.google.com/macros/s/AKfyc.../exec
-  SHEET_SECRET: '',     // must match SHARED_SECRET in Code.gs
+  SHEET_URL: 'https://script.google.com/macros/s/AKfycbySONP2foU35c0PWtXUgTpZbYdv787-IC8JDoQm08tFrRxq7jWdXJSOdH3j7IR8qDw6Kg/exec',        // https://script.google.com/macros/s/AKfyc.../exec
+  SHEET_SECRET: 'change-me-to-something-random',     // must match SHARED_SECRET in Code.gs
   WORKER_URL: 'https://email.edgeformmedia.workers.dev/',
-  WORKER_SECRET: '',    // must match ONYX_SECRET in the Worker
+  WORKER_SECRET: 'lasdgfiaugoiajbvfouahoeghaoieroayegvieuabeorgeaivrboauvbaoe8yrgboqevbeh',    // must match ONYX_SECRET in the Worker
   SEND_DOMAIN: 'edgeform-media.com',
 
   // Local part of the From address. The Worker rebuilds the full
