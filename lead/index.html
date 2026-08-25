@@ -339,42 +339,140 @@ Onyx.requireAuth(function () {
   document.getElementById('research').addEventListener('click', function () {
     var btn = this;
     btn.disabled = true;
-    Onyx.msg('dmMsg', 'Deep research running — company crawl → owner hunt → email hunt → sales fit...');
 
-    Onyx.worker('enrich', { lead: lead }).then(function (r) {
-      btn.disabled = false;
-      if (!r.ok) { Onyx.msg('dmMsg', r.error || 'Research failed.', 'bad'); return; }
-      var d = r.data, f = {};
+    var map = [
+      ['decisionMakerName', 'dmName'], ['decisionMakerTitle', 'dmTitle'],
+      ['decisionMakerConfidence', 'dmConfidence'], ['decisionMakerEvidence', 'dmEvidence'],
+      ['email', 'email'], ['emailStatus', 'emailStatus'], ['emailConfidence', 'emailConfidence'],
+      ['directPhone', 'directPhone'], ['linkedin', 'linkedin'], ['instagram', 'instagram'],
+      ['facebook', 'facebook'], ['services', 'services'], ['existingEquipment', 'existingEquipment'],
+      ['expansionSignals', 'expansionSignals'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
+      ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
+      ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
+      ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],
+      ['emailCandidates', 'emailCandidates'], ['ownerCandidates', 'ownerCandidates'],
+      ['ownerSources', 'ownerSources'], ['researchAttempts', 'researchAttempts'], ['researchSummary', 'researchSummary'],
+      ['enrichedAt', 'enrichedAt'], ['needsHumanReview', 'needsHumanReview']
+    ];
 
-      [['decisionMakerName', 'dmName'], ['decisionMakerTitle', 'dmTitle'],
-       ['decisionMakerConfidence', 'dmConfidence'], ['decisionMakerEvidence', 'dmEvidence'],
-       ['email', 'email'], ['emailStatus', 'emailStatus'], ['emailConfidence', 'emailConfidence'],
-       ['directPhone', 'directPhone'], ['linkedin', 'linkedin'], ['instagram', 'instagram'],
-       ['facebook', 'facebook'], ['services', 'services'], ['existingEquipment', 'existingEquipment'],
-       ['expansionSignals', 'expansionSignals'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
-       ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
-       ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
-       ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],
-       ['emailCandidates', 'emailCandidates'], ['ownerCandidates', 'ownerCandidates'],
-       ['ownerSources', 'ownerSources'], ['researchAttempts', 'researchAttempts'], ['researchSummary', 'researchSummary'],
-       ['enrichedAt', 'enrichedAt'], ['needsHumanReview', 'needsHumanReview']]
-        .forEach(function (p) {
-          var v = d[p[0]];
-          if (v === undefined || v === null || v === '' || v === 'Unknown') return;
-          if (p[1] === 'email' && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return; // preserve only explicitly human-entered email
-          if (['emailCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
-            v = JSON.stringify(v);
-          }
-          f[p[1]] = v;
-        });
-
-      if (!lead.stage || lead.stage === 'New Lead') f.stage = 'Researching';
-
-      Onyx.sheet('updateLead', { id: id, fields: f }).then(function (u) {
-        if (!u.ok) { Onyx.msg('dmMsg', u.error, 'bad'); return; }
-        Onyx.msg('dmMsg', 'Research saved — ' + ((d.emailCandidates || []).length || 0) + ' email candidate(s)' + (d.needsHumanReview ? ' · needs human review.' : ' · ready.'), 'good');
-        load();
+    function fieldsFrom(d) {
+      var f = {};
+      map.forEach(function (p) {
+        var v = d && d[p[0]];
+        if (v === undefined || v === null || v === '' || v === 'Unknown') return;
+        if (p[1] === 'email' && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return;
+        if (['emailCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
+          v = JSON.stringify(v);
+        }
+        f[p[1]] = v;
       });
+      return f;
+    }
+
+    function mergeTextField(a, b) {
+      var parts = [];
+      [a, b].forEach(function (v) {
+        if (!v) return;
+        String(v).split(/\n+/).forEach(function (x) {
+          x = x.trim();
+          if (x && parts.indexOf(x) === -1) parts.push(x);
+        });
+      });
+      return parts.join('\n');
+    }
+
+    function mergeAttemptLists(a, b) {
+      function arr(v) {
+        if (!v) return [];
+        if (Array.isArray(v)) return v;
+        try { var p = JSON.parse(v); return Array.isArray(p) ? p : [String(v)]; }
+        catch (_) { return [String(v)]; }
+      }
+      var out = [];
+      arr(a).concat(arr(b)).forEach(function (x) {
+        if (x && out.indexOf(x) === -1) out.push(x);
+      });
+      return out;
+    }
+
+    function saveData(d, extra) {
+      var f = fieldsFrom(d || {});
+      if (extra) for (var k in extra) f[k] = extra[k];
+      if (!Object.keys(f).length) return Promise.resolve({ ok: true });
+      return Onyx.sheet('updateLead', { id: id, fields: f });
+    }
+
+    Onyx.msg('dmMsg', 'Stage 1/3 — SMART owner lookup. One high-yield search first; fallback only if the owner is still weak/missing...');
+
+    Onyx.worker('enrichOwner', { lead: lead }).then(function (ownerRes) {
+      if (!ownerRes.ok) throw new Error(ownerRes.error || 'Owner research failed.');
+      var owner = ownerRes.data || {};
+      owner.enrichedAt = new Date().toISOString();
+
+      return saveData(owner, (!lead.stage || lead.stage === 'New Lead') ? { stage: 'Researching' } : null)
+        .then(function (saved) {
+          if (!saved.ok) throw new Error(saved.error || 'Could not save owner research.');
+          load(); // owner appears immediately instead of waiting for every later API call
+
+          var ownerName = owner.decisionMakerName && owner.decisionMakerName !== 'Unknown'
+            ? owner.decisionMakerName : 'Owner unresolved';
+          var om = owner._researchMeta || {};
+          Onyx.msg('dmMsg', 'Owner: ' + ownerName + ' (' + (owner.decisionMakerConfidence || 'LOW') + ') — ' + (om.ownerWebPasses || 0) + ' web pass(es). Email + sales stages now run in parallel and stop early when enough is found...');
+
+          return Promise.all([
+            Onyx.worker('enrichEmails', { lead: lead, owner: owner }),
+            Onyx.worker('enrichBusiness', { lead: lead, owner: owner })
+          ]).then(function (parts) {
+            return { owner: owner, emailRes: parts[0], bizRes: parts[1] };
+          });
+        });
+    }).then(function (result) {
+      var emailRes = result.emailRes || {};
+      var bizRes = result.bizRes || {};
+      var combined = {};
+      var errors = [];
+
+      if (emailRes.ok && emailRes.data) Object.assign(combined, emailRes.data);
+      else errors.push('email: ' + (emailRes.error || 'failed'));
+
+      if (bizRes.ok && bizRes.data) {
+        var ownerSummary = result.owner.researchSummary || '';
+        var emailSummary = combined.researchSummary || '';
+        var emailAttempts = combined.researchAttempts || [];
+        var emailSources = combined.sources || '';
+        Object.assign(combined, bizRes.data);
+        combined.researchSummary = [ownerSummary, emailSummary, bizRes.data.researchSummary].filter(Boolean).join(' · ');
+        combined.researchAttempts = mergeAttemptLists(result.owner.researchAttempts, mergeAttemptLists(emailAttempts, bizRes.data.researchAttempts));
+        combined.sources = mergeTextField(result.owner.sources, mergeTextField(emailSources, bizRes.data.sources));
+      } else {
+        errors.push('sales: ' + (bizRes.error || 'failed'));
+      }
+
+      combined.enrichedAt = new Date().toISOString();
+      combined.needsHumanReview = !!(
+        (emailRes.ok && emailRes.data && emailRes.data.needsHumanReview) ||
+        result.owner.needsHumanReview || errors.length
+      );
+
+      return saveData(combined).then(function (saved) {
+        if (!saved.ok) throw new Error(saved.error || 'Could not save final research.');
+        btn.disabled = false;
+        load();
+        var count = emailRes.ok && emailRes.data && Array.isArray(emailRes.data.emailCandidates)
+          ? emailRes.data.emailCandidates.length : 0;
+        var om = result.owner._researchMeta || {};
+        var em = emailRes.ok && emailRes.data ? (emailRes.data._researchMeta || {}) : {};
+        var bm = bizRes.ok && bizRes.data ? (bizRes.data._researchMeta || {}) : {};
+        var webPasses = (om.ownerWebPasses || 0) + (em.emailWebPasses || 0) + (bm.businessWebPasses || 0);
+        if (errors.length) {
+          Onyx.msg('dmMsg', 'Research partially saved — ' + errors.join(' · ') + ' · ' + webPasses + ' total web pass(es).', 'bad');
+        } else {
+          Onyx.msg('dmMsg', 'Research complete — ' + count + ' email candidate(s) · ' + webPasses + ' total web pass(es).', 'good');
+        }
+      });
+    }).catch(function (e) {
+      btn.disabled = false;
+      Onyx.msg('dmMsg', String(e && e.message || e), 'bad');
     });
   });
 });

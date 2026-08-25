@@ -1,4 +1,4 @@
-/* ONYX CRM — shared core, loaded by every page.
+/* ONYX CRM v5 SMART WATERFALL — shared core, loaded by every page.
    Handles transport, the session, and the nav chrome. */
 
 window.Onyx = (function () {
