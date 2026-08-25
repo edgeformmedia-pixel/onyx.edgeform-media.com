@@ -41,9 +41,17 @@
         <p class="msg" id="dmMsg"></p>
       </section>
 
+      <section class="panel" id="peopleResearchPanel">
+        <h2>Owner lookup shortcuts</h2>
+        <p class="hint">Built from the AI owner name + business phone/address. Phone URLs automatically remove a leading +1.</p>
+        <div class="research-links" id="peopleResearchLinks"></div>
+      </section>
+
       <section class="panel" id="researchPanel" hidden>
         <h2>Research</h2>
         <div class="dgrid" id="researchGrid"></div>
+        <div id="emailCandidates"></div>
+        <div id="ownerCandidates"></div>
         <div id="suggested"></div>
       </section>
     </div>
@@ -95,6 +103,118 @@ Onyx.requireAuth(function () {
   function esc(v) { return Onyx.esc(v); }
   function val(k) { return document.getElementById(k).value.trim(); }
 
+  function parseList(v) {
+    if (Array.isArray(v)) return v;
+    if (!v) return [];
+    try { var x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; }
+  }
+
+  function slug(v) {
+    return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
+  function phone10(v) {
+    var d = String(v || '').replace(/\D/g, '');
+    if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
+    return d;
+  }
+
+  function phoneDash(v) {
+    var d = phone10(v);
+    return d.length === 10 ? d.slice(0,3) + '-' + d.slice(3,6) + '-' + d.slice(6) : d;
+  }
+
+  function phoneParen(v) {
+    var d = phone10(v);
+    return d.length === 10 ? '(' + d.slice(0,3) + ')' + d.slice(3,6) + '-' + d.slice(6) : d;
+  }
+
+  function extLink(label, url) {
+    return url ? '<a class="btn quiet compact" target="_blank" rel="noopener noreferrer" href="' + esc(url) + '">' + esc(label) + '</a>' : '';
+  }
+
+  function buildPeopleLinks(l) {
+    var name = String(l.dmName || '').trim();
+    var city = String(l.city || '').trim();
+    var state = String(l.state || '').trim();
+    var zip = String(l.zip || '').trim();
+    var street = String(l.street || '').trim();
+    var phone = String(l.directPhone || l.phone || '').trim();
+    var ns = slug(name), cs = slug(city), ss = slug(street), st = state.toLowerCase();
+    var pd = phoneDash(phone), p10 = phone10(phone), pp = phoneParen(phone);
+    var locSlug = [cs, st].filter(Boolean).join('-');
+    var cityState = [city, state].filter(Boolean).join(', ');
+
+    function enc(v) { return encodeURIComponent(String(v || '')); }
+    var groups = [
+      { name: 'FastPeopleSearch', links: [
+        name && city && state ? ['Name + location', 'https://www.fastpeoplesearch.com/name/' + ns + '_' + locSlug] : null,
+        name ? ['Name', 'https://www.fastpeoplesearch.com/name/' + ns] : null,
+        pd ? ['Phone', 'https://www.fastpeoplesearch.com/' + pd] : null,
+        street && city && state ? ['Address', 'https://www.fastpeoplesearch.com/address/' + ss + '_' + locSlug] : null
+      ]},
+      { name: 'TruePeopleSearch', links: [
+        name && cityState ? ['Name + location', 'https://www.truepeoplesearch.com/results?name=' + enc(name) + '&citystatezip=' + enc(cityState)] : null,
+        name ? ['Name', 'https://www.truepeoplesearch.com/results?name=' + enc(name)] : null,
+        pp ? ['Phone', 'https://www.truepeoplesearch.com/resultphone?phoneno=' + enc(pp)] : null,
+        street && cityState ? ['Address', 'https://www.truepeoplesearch.com/resultaddress?streetaddress=' + enc(street) + '&citystatezip=' + enc(cityState)] : null
+      ]},
+      { name: 'FastBackgroundCheck', links: [
+        name && city && state ? ['Name + location', 'https://www.fastbackgroundcheck.com/people/' + ns + '/' + locSlug] : null,
+        name ? ['Name', 'https://www.fastbackgroundcheck.com/people/' + ns] : null,
+        pd ? ['Phone', 'https://www.fastbackgroundcheck.com/phone/' + pd] : null,
+        street && city && state ? ['Address', 'https://www.fastbackgroundcheck.com/address/' + ss + '/' + locSlug] : null
+      ]},
+      { name: 'USPhoneBook', links: [
+        name && city && state ? ['Name + location', 'https://www.usphonebook.com/' + ns + '/' + st + '/' + cs] : null,
+        name ? ['Name', 'https://www.usphonebook.com/' + ns] : null,
+        pd ? ['Phone', 'https://www.usphonebook.com/phone-search/' + pd] : null,
+        street && city && state ? ['Address', 'https://www.usphonebook.com/address/' + ss + '_' + locSlug] : null
+      ]},
+      { name: 'AdvancedBackgroundChecks', links: [
+        name && city && state ? ['Name + location', 'https://www.advancedbackgroundchecks.com/find/name/' + ns + '/in/' + encodeURIComponent(state.toUpperCase()) + '/' + cs] : null,
+        name ? ['Name', 'https://www.advancedbackgroundchecks.com/find/name/' + ns] : null,
+        p10 ? ['Phone', 'https://www.advancedbackgroundchecks.com/find/phone/' + p10] : null,
+        street && city && state ? ['Address', 'https://www.advancedbackgroundchecks.com/find/address/' + ss + '/' + cs + '-' + encodeURIComponent(state.toUpperCase()) + (zip ? '-' + enc(zip) : '')] : null
+      ]}
+    ];
+
+    return groups.map(function (g) {
+      var links = g.links.filter(Boolean);
+      if (!links.length) return '';
+      return '<div class="research-link-row"><b>' + esc(g.name) + '</b><div class="actions">' +
+        links.map(function (x) { return extLink(x[0], x[1]); }).join('') + '</div></div>';
+    }).join('');
+  }
+
+  function paintEmailCandidates(l) {
+    var list = parseList(l.emailCandidates);
+    var el = document.getElementById('emailCandidates');
+    if (!list.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<p class="hint research-subhead">Email candidates (' + list.length + ')</p>' +
+      '<div class="research-list">' + list.map(function (c) {
+        var src = c.sourceUrl ? extLink('Source', c.sourceUrl) : '';
+        return '<div class="research-item"><div><a href="mailto:' + esc(c.email) + '"><b>' + esc(c.email) + '</b></a> ' +
+          '<span class="tag">' + esc(c.type || '') + '</span> <span class="tag ' + (c.confidence === 'VERIFIED' ? 'ok' : '') + '">' + esc(c.confidence || '') + '</span></div>' +
+          '<div class="hint">' + esc(c.status || '') + (c.source ? ' · ' + esc(c.source) : '') + '</div>' +
+          (c.evidence ? '<div class="hint">' + esc(c.evidence) + '</div>' : '') + src + '</div>';
+      }).join('') + '</div>';
+  }
+
+  function paintOwnerCandidates(l) {
+    var list = parseList(l.ownerCandidates);
+    var el = document.getElementById('ownerCandidates');
+    if (!list.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<p class="hint research-subhead">Owner / decision-maker candidates</p>' +
+      '<div class="research-list">' + list.map(function (c) {
+        return '<div class="research-item"><div><b>' + esc(c.name || 'Unknown') + '</b>' +
+          (c.title ? ' · ' + esc(c.title) : '') + ' <span class="tag">' + esc(c.confidence || '') + '</span></div>' +
+          (c.evidence ? '<div class="hint">' + esc(c.evidence) + '</div>' : '') +
+          (c.sourceUrl ? extLink('Source', c.sourceUrl) : '') + '</div>';
+      }).join('') + '</div>';
+  }
+
   load();
 
   function load() {
@@ -122,6 +242,7 @@ Onyx.requireAuth(function () {
     document.getElementById('nextActionDate').value = Onyx.shortDate(l.nextActionDate);
     document.getElementById('dmEvidence').textContent = l.dmEvidence ? 'Evidence: ' + l.dmEvidence : '';
     document.getElementById('emailThem').hidden = !l.email;
+    document.getElementById('peopleResearchLinks').innerHTML = buildPeopleLinks(l) || '<p class="hint">Add an owner name, phone, or address to generate lookup links.</p>';
 
     var sel = document.getElementById('stage');
     sel.innerHTML = stages.map(function (s) {
@@ -145,16 +266,23 @@ Onyx.requireAuth(function () {
       (l.mapsUrl ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.mapsUrl) + '">Maps</a>' : '') +
       (l.phone ? '<a class="btn quiet compact" href="tel:' + esc(String(l.phone).replace(/\D/g, '')) + '">Call</a>' : '');
 
-    if (l.dmName || l.email || l.directPhone || l.sources) {
+    if (l.leadScore || l.salesAngle || l.researchSummary || l.emailCandidates || l.ownerCandidates) {
       document.getElementById('researchPanel').hidden = false;
       document.getElementById('researchGrid').innerHTML = [
-        ['Name', l.dmName],
-        ['Phone', l.directPhone || l.phone],
-        ['Email', l.email],
+        ['Score', l.leadScore + (l.buyerFit ? ' — ' + l.buyerFit : '')],
+        ['Why', l.scoreReasoning], ['Sales angle', l.salesAngle], ['Evidence', l.angleEvidence],
+        ['Services', l.services], ['Equipment', l.existingEquipment],
+        ['Signals', l.expansionSignals], ['Best channel', l.bestChannel], ['Research summary', l.researchSummary],
+        ['Attempts', (function () { var a = parseList(l.researchAttempts); return a.length ? a.join(' · ') : l.researchAttempts; })()],
         ['Sources', l.sources]
       ].filter(function (p) { return p[1]; })
         .map(function (p) { return '<span class="k">' + p[0] + '</span><span>' + esc(p[1]) + '</span>'; }).join('');
-      document.getElementById('suggested').innerHTML = '';
+
+      paintEmailCandidates(l);
+      paintOwnerCandidates(l);
+      document.getElementById('suggested').innerHTML = l.suggestedMessage
+        ? '<p class="hint" style="margin-top:12px">Suggested opener</p><div class="notes">' +
+          esc(l.suggestedMessage) + '</div>' : '';
     }
 
     document.getElementById('notes').textContent = l.notes || '';
@@ -207,48 +335,40 @@ Onyx.requireAuth(function () {
   document.getElementById('research').addEventListener('click', function () {
     var btn = this;
     btn.disabled = true;
-    Onyx.msg('dmMsg', 'Researching — this takes 20 to 60 seconds...');
+    Onyx.msg('dmMsg', 'Deep research running — company crawl → owner hunt → email hunt → sales fit...');
 
-    // Keep the AI request intentionally small. The researcher only needs enough
-    // business identity to find a contact, not the entire CRM lead object.
-    var contactLookup = {
-      name: lead.name || '',
-      website: lead.website || '',
-      phone: lead.phone || '',
-      street: lead.street || '',
-      city: lead.city || '',
-      state: lead.state || '',
-      zip: lead.zip || '',
-      category: lead.category || '',
-      mapsUrl: lead.mapsUrl || ''
-    };
-
-    Onyx.worker('enrich', {
-      mode: 'contact_only',
-      fields: ['decisionMakerName', 'email', 'directPhone', 'sources'],
-      lead: contactLookup
-    }).then(function (r) {
+    Onyx.worker('enrich', { lead: lead }).then(function (r) {
       btn.disabled = false;
       if (!r.ok) { Onyx.msg('dmMsg', r.error || 'Research failed.', 'bad'); return; }
-      var d = r.data || {}, f = {};
+      var d = r.data, f = {};
 
-      // Only persist the four things this lookup is supposed to return.
-      // Accept short aliases too, so a leaner Worker schema can use name/phone.
-      var contactName = d.decisionMakerName || d.name;
-      var contactPhone = d.directPhone || d.phone;
-
-      if (contactName && contactName !== 'Unknown') f.dmName = contactName;
-      if (contactPhone && contactPhone !== 'Unknown') f.directPhone = contactPhone;
-      if (d.email && d.email !== 'Unknown' && !lead.email) f.email = d.email;
-      if (d.sources && d.sources !== 'Unknown') {
-        f.sources = Array.isArray(d.sources) ? d.sources.join(' | ') : d.sources;
-      }
+      [['decisionMakerName', 'dmName'], ['decisionMakerTitle', 'dmTitle'],
+       ['decisionMakerConfidence', 'dmConfidence'], ['decisionMakerEvidence', 'dmEvidence'],
+       ['email', 'email'], ['emailStatus', 'emailStatus'], ['emailConfidence', 'emailConfidence'],
+       ['directPhone', 'directPhone'], ['linkedin', 'linkedin'], ['instagram', 'instagram'],
+       ['facebook', 'facebook'], ['services', 'services'], ['existingEquipment', 'existingEquipment'],
+       ['expansionSignals', 'expansionSignals'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
+       ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
+       ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
+       ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],
+       ['emailCandidates', 'emailCandidates'], ['ownerCandidates', 'ownerCandidates'],
+       ['ownerSources', 'ownerSources'], ['researchAttempts', 'researchAttempts'], ['researchSummary', 'researchSummary'],
+       ['enrichedAt', 'enrichedAt'], ['needsHumanReview', 'needsHumanReview']]
+        .forEach(function (p) {
+          var v = d[p[0]];
+          if (v === undefined || v === null || v === '' || v === 'Unknown') return;
+          if (p[1] === 'email' && lead.email) return;   // never overwrite a human's entry
+          if (['emailCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
+            v = JSON.stringify(v);
+          }
+          f[p[1]] = v;
+        });
 
       if (!lead.stage || lead.stage === 'New Lead') f.stage = 'Researching';
 
       Onyx.sheet('updateLead', { id: id, fields: f }).then(function (u) {
         if (!u.ok) { Onyx.msg('dmMsg', u.error, 'bad'); return; }
-        Onyx.msg('dmMsg', 'Contact research saved.', 'good');
+        Onyx.msg('dmMsg', 'Research saved — ' + ((d.emailCandidates || []).length || 0) + ' email candidate(s)' + (d.needsHumanReview ? ' · needs human review.' : ' · ready.'), 'good');
         load();
       });
     });

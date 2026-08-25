@@ -169,3 +169,15 @@ table.grid{width:100%;border-collapse:collapse;font-size:13px}
   .frow{flex-direction:column;align-items:stretch;gap:5px}
   .frow > span{width:auto;flex:none}
 }
+
+
+/* research overhaul */
+.research-links{display:grid;gap:10px;margin-top:12px}
+.research-link-row{padding:10px 0;border-top:1px solid var(--line)}
+.research-link-row:first-child{border-top:0;padding-top:0}
+.research-link-row>b{font-size:12.5px}
+.research-link-row .actions{margin-top:7px}
+.research-subhead{margin-top:16px!important;margin-bottom:7px!important;text-transform:uppercase;letter-spacing:.06em}
+.research-list{display:grid;gap:8px}
+.research-item{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px}
+.research-item>.btn{margin-top:7px}
