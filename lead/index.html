@@ -53,7 +53,9 @@
         <h2>Research</h2>
         <div class="dgrid" id="researchGrid"></div>
         <div id="emailCandidates"></div>
+        <div id="phoneCandidates"></div>
         <div id="ownerCandidates"></div>
+        <div id="researchSources"></div>
         <div id="suggested"></div>
       </section>
     </div>
@@ -136,6 +138,99 @@ Onyx.requireAuth(function () {
     return url ? '<a class="btn quiet compact" target="_blank" rel="noopener noreferrer" href="' + esc(url) + '">' + esc(label) + '</a>' : '';
   }
 
+
+  function cleanUrl(url) {
+    var u = String(url || '').trim();
+    // Handle markdown-style values such as [https://example.com](https://example.com)
+    var md = u.match(/^\[[^\]]*\]\((https?:\/\/[^)]+)\)$/i);
+    if (md) u = md[1];
+    // Remove punctuation sometimes appended by model output.
+    return u.replace(/[),.;]+$/g, '');
+  }
+
+  function urlsFromValue(v) {
+    var out = [];
+    function add(u) {
+      u = cleanUrl(u);
+      if (/^https?:\/\//i.test(u) && out.indexOf(u) === -1) out.push(u);
+    }
+    if (Array.isArray(v)) {
+      v.forEach(function (x) {
+        if (typeof x === 'string') {
+          var m = x.match(/https?:\/\/[^\s<>"']+/g) || [];
+          m.forEach(add);
+        } else if (x && typeof x === 'object') {
+          add(x.url || x.sourceUrl || '');
+        }
+      });
+      return out;
+    }
+    if (!v) return out;
+    if (typeof v === 'object') {
+      add(v.url || v.sourceUrl || '');
+      return out;
+    }
+    var str = String(v);
+    try {
+      var parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) return urlsFromValue(parsed);
+    } catch (e) {}
+    (str.match(/https?:\/\/[^\s<>"']+/g) || []).forEach(add);
+    return out;
+  }
+
+  function sourceLabel(url, i) {
+    try {
+      var h = new URL(url).hostname.replace(/^www\./, '');
+      return h || ('Source ' + (i + 1));
+    } catch (e) { return 'Source ' + (i + 1); }
+  }
+
+  function paintResearchSources(l) {
+    var el = document.getElementById('researchSources');
+    if (!el) return;
+    var ownerSources = parseList(l.ownerSources);
+    var generalUrls = urlsFromValue(l.sources);
+    var seen = {};
+    var cards = [];
+
+    ownerSources.forEach(function (src) {
+      if (!src) return;
+      var url = cleanUrl(src.url || src.sourceUrl || '');
+      if (!url || seen[url]) return;
+      seen[url] = true;
+      cards.push('<div class="research-item">' +
+        '<div>' + extLink(src.source || sourceLabel(url, cards.length), url) + '</div>' +
+        (src.evidence ? '<div class="hint" style="margin-top:6px">' + esc(src.evidence) + '</div>' : '') +
+        '<div class="hint" style="margin-top:4px;word-break:break-all">' + esc(url) + '</div>' +
+        '</div>');
+    });
+
+    generalUrls.forEach(function (url) {
+      if (seen[url]) return;
+      seen[url] = true;
+      cards.push('<div class="research-item"><div>' + extLink(sourceLabel(url, cards.length), url) + '</div>' +
+        '<div class="hint" style="margin-top:4px;word-break:break-all">' + esc(url) + '</div></div>');
+    });
+
+    // Candidate-specific URLs can exist even when they were not copied into l.sources.
+    [l.emailCandidates, l.phoneCandidates, l.ownerCandidates].forEach(function (raw) {
+      parseList(raw).forEach(function (c) {
+        var url = cleanUrl(c && c.sourceUrl || '');
+        if (!url || seen[url]) return;
+        seen[url] = true;
+        var label = c.source || c.name || c.email || c.phone || sourceLabel(url, cards.length);
+        cards.push('<div class="research-item"><div>' + extLink(label, url) + '</div>' +
+          (c.evidence ? '<div class="hint" style="margin-top:6px">' + esc(c.evidence) + '</div>' : '') +
+          '<div class="hint" style="margin-top:4px;word-break:break-all">' + esc(url) + '</div></div>');
+      });
+    });
+
+    el.innerHTML = cards.length
+      ? '<p class="hint research-subhead">Research sources (' + cards.length + ') — click any source to open it</p><div class="research-list">' + cards.join('') + '</div>'
+      : '';
+  }
+
   function buildPeopleLinks(l) {
     var name = String(l.dmName || '').trim();
     var city = String(l.city || '').trim();
@@ -198,6 +293,23 @@ Onyx.requireAuth(function () {
       '<div class="research-list">' + list.map(function (c) {
         var src = c.sourceUrl ? extLink('Source', c.sourceUrl) : '';
         return '<div class="research-item"><div><a href="mailto:' + esc(c.email) + '"><b>' + esc(c.email) + '</b></a> ' +
+          '<span class="tag">' + esc(c.type || '') + '</span> <span class="tag ' + (c.confidence === 'VERIFIED' ? 'ok' : '') + '">' + esc(c.confidence || '') + '</span></div>' +
+          '<div class="hint">' + esc(c.status || '') + (c.source ? ' · ' + esc(c.source) : '') + '</div>' +
+          (c.evidence ? '<div class="hint">' + esc(c.evidence) + '</div>' : '') + src + '</div>';
+      }).join('') + '</div>';
+  }
+
+  function paintPhoneCandidates(l) {
+    var list = parseList(l.phoneCandidates);
+    var el = document.getElementById('phoneCandidates');
+    if (!el) return;
+    if (!list.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<p class="hint research-subhead">Phone candidates (' + list.length + ')</p>' +
+      '<div class="research-list">' + list.map(function (c) {
+        var src = c.sourceUrl ? extLink('Source', c.sourceUrl) : '';
+        var digits = String(c.phone || '').replace(/\D/g, '');
+        var tel = digits ? 'tel:+' + (digits.length === 10 ? '1' : '') + digits : '#';
+        return '<div class="research-item"><div><a href="' + esc(tel) + '"><b>' + esc(c.phone || '') + '</b></a> ' +
           '<span class="tag">' + esc(c.type || '') + '</span> <span class="tag ' + (c.confidence === 'VERIFIED' ? 'ok' : '') + '">' + esc(c.confidence || '') + '</span></div>' +
           '<div class="hint">' + esc(c.status || '') + (c.source ? ' · ' + esc(c.source) : '') + '</div>' +
           (c.evidence ? '<div class="hint">' + esc(c.evidence) + '</div>' : '') + src + '</div>';
@@ -270,7 +382,7 @@ Onyx.requireAuth(function () {
       (l.mapsUrl ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.mapsUrl) + '">Maps</a>' : '') +
       (l.phone ? '<a class="btn quiet compact" href="tel:' + esc(String(l.phone).replace(/\D/g, '')) + '">Call</a>' : '');
 
-    if (l.leadScore || l.salesAngle || l.researchSummary || l.emailCandidates || l.ownerCandidates) {
+    if (l.leadScore || l.salesAngle || l.researchSummary || l.emailCandidates || l.phoneCandidates || l.ownerCandidates) {
       document.getElementById('researchPanel').hidden = false;
       document.getElementById('researchGrid').innerHTML = [
         ['Score', l.leadScore + (l.buyerFit ? ' — ' + l.buyerFit : '')],
@@ -278,12 +390,13 @@ Onyx.requireAuth(function () {
         ['Services', l.services], ['Equipment', l.existingEquipment],
         ['Signals', l.expansionSignals], ['Best channel', l.bestChannel], ['Research summary', l.researchSummary],
         ['Attempts', (function () { var a = parseList(l.researchAttempts); return a.length ? a.join(' · ') : l.researchAttempts; })()],
-        ['Sources', l.sources]
       ].filter(function (p) { return p[1]; })
         .map(function (p) { return '<span class="k">' + p[0] + '</span><span>' + esc(p[1]) + '</span>'; }).join('');
 
       paintEmailCandidates(l);
+      paintPhoneCandidates(l);
       paintOwnerCandidates(l);
+      paintResearchSources(l);
       document.getElementById('suggested').innerHTML = l.suggestedMessage
         ? '<p class="hint" style="margin-top:12px">Suggested opener</p><div class="notes">' +
           esc(l.suggestedMessage) + '</div>' : '';
@@ -350,7 +463,7 @@ Onyx.requireAuth(function () {
       ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
       ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
       ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],
-      ['emailCandidates', 'emailCandidates'], ['ownerCandidates', 'ownerCandidates'],
+      ['emailCandidates', 'emailCandidates'], ['phoneCandidates', 'phoneCandidates'], ['ownerCandidates', 'ownerCandidates'],
       ['ownerSources', 'ownerSources'], ['researchAttempts', 'researchAttempts'], ['researchSummary', 'researchSummary'],
       ['enrichedAt', 'enrichedAt'], ['needsHumanReview', 'needsHumanReview']
     ];
@@ -361,7 +474,7 @@ Onyx.requireAuth(function () {
         var v = d && d[p[0]];
         if (v === undefined || v === null || v === '' || v === 'Unknown') return;
         if (p[1] === 'email' && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return;
-        if (['emailCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
+        if (['emailCandidates','phoneCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
           v = JSON.stringify(v);
         }
         f[p[1]] = v;
@@ -417,7 +530,7 @@ Onyx.requireAuth(function () {
           var ownerName = owner.decisionMakerName && owner.decisionMakerName !== 'Unknown'
             ? owner.decisionMakerName : 'Owner unresolved';
           var om = owner._researchMeta || {};
-          Onyx.msg('dmMsg', 'Owner: ' + ownerName + ' (' + (owner.decisionMakerConfidence || 'LOW') + ') — ' + (om.ownerWebPasses || 0) + ' web pass(es). Email + sales stages now run in parallel and stop early when enough is found...');
+          Onyx.msg('dmMsg', 'Owner: ' + ownerName + ' (' + (owner.decisionMakerConfidence || 'LOW') + ') — ' + (om.ownerWebPasses || 0) + ' web pass(es). Contact + sales stages now run in parallel. Contact research also reverse-searches the known business number for alternate published phones...');
 
           return Promise.all([
             Onyx.worker('enrichEmails', { lead: lead, owner: owner }),
@@ -460,6 +573,8 @@ Onyx.requireAuth(function () {
         load();
         var count = emailRes.ok && emailRes.data && Array.isArray(emailRes.data.emailCandidates)
           ? emailRes.data.emailCandidates.length : 0;
+        var phoneCount = emailRes.ok && emailRes.data && Array.isArray(emailRes.data.phoneCandidates)
+          ? emailRes.data.phoneCandidates.length : 0;
         var om = result.owner._researchMeta || {};
         var em = emailRes.ok && emailRes.data ? (emailRes.data._researchMeta || {}) : {};
         var bm = bizRes.ok && bizRes.data ? (bizRes.data._researchMeta || {}) : {};
@@ -467,7 +582,7 @@ Onyx.requireAuth(function () {
         if (errors.length) {
           Onyx.msg('dmMsg', 'Research partially saved — ' + errors.join(' · ') + ' · ' + webPasses + ' total web pass(es).', 'bad');
         } else {
-          Onyx.msg('dmMsg', 'Research complete — ' + count + ' email candidate(s) · ' + webPasses + ' total web pass(es).', 'good');
+          Onyx.msg('dmMsg', 'Research complete — ' + count + ' email candidate(s) · ' + phoneCount + ' phone candidate(s) · ' + webPasses + ' total web pass(es).', 'good');
         }
       });
     }).catch(function (e) {
