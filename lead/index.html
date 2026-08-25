@@ -23,6 +23,8 @@
           <span class="k">Name</span><input id="dmName" placeholder="Not found yet">
           <span class="k">Title</span><input id="dmTitle" placeholder="Owner, Medical Director...">
           <span class="k">Email</span><input id="email" placeholder="owner@theirspa.com">
+          <span class="k">Email confidence</span><input id="emailConfidenceView" readonly placeholder="Not researched">
+          <span class="k">Email status</span><input id="emailStatusView" readonly placeholder="Not researched">
           <span class="k">Confidence</span>
           <select id="dmConfidence">
             <option value="">—</option><option>VERIFIED</option><option>HIGH</option>
@@ -242,6 +244,8 @@ Onyx.requireAuth(function () {
     document.getElementById('nextActionDate').value = Onyx.shortDate(l.nextActionDate);
     document.getElementById('dmEvidence').textContent = l.dmEvidence ? 'Evidence: ' + l.dmEvidence : '';
     document.getElementById('emailThem').hidden = !l.email;
+    document.getElementById('emailConfidenceView').value = l.emailConfidence || '';
+    document.getElementById('emailStatusView').value = l.emailStatus || '';
     document.getElementById('peopleResearchLinks').innerHTML = buildPeopleLinks(l) || '<p class="hint">Add an owner name, phone, or address to generate lookup links.</p>';
 
     var sel = document.getElementById('stage');
@@ -357,7 +361,7 @@ Onyx.requireAuth(function () {
         .forEach(function (p) {
           var v = d[p[0]];
           if (v === undefined || v === null || v === '' || v === 'Unknown') return;
-          if (p[1] === 'email' && lead.email) return;   // never overwrite a human's entry
+          if (p[1] === 'email' && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return; // preserve only explicitly human-entered email
           if (['emailCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
             v = JSON.stringify(v);
           }
