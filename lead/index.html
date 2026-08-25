@@ -145,19 +145,16 @@ Onyx.requireAuth(function () {
       (l.mapsUrl ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.mapsUrl) + '">Maps</a>' : '') +
       (l.phone ? '<a class="btn quiet compact" href="tel:' + esc(String(l.phone).replace(/\D/g, '')) + '">Call</a>' : '');
 
-    if (l.leadScore || l.salesAngle) {
+    if (l.dmName || l.email || l.directPhone || l.sources) {
       document.getElementById('researchPanel').hidden = false;
       document.getElementById('researchGrid').innerHTML = [
-        ['Score', l.leadScore + (l.buyerFit ? ' — ' + l.buyerFit : '')],
-        ['Why', l.scoreReasoning], ['Sales angle', l.salesAngle], ['Evidence', l.angleEvidence],
-        ['Services', l.services], ['Equipment', l.existingEquipment],
-        ['Signals', l.expansionSignals], ['Best channel', l.bestChannel], ['Sources', l.sources]
+        ['Name', l.dmName],
+        ['Phone', l.directPhone || l.phone],
+        ['Email', l.email],
+        ['Sources', l.sources]
       ].filter(function (p) { return p[1]; })
         .map(function (p) { return '<span class="k">' + p[0] + '</span><span>' + esc(p[1]) + '</span>'; }).join('');
-
-      document.getElementById('suggested').innerHTML = l.suggestedMessage
-        ? '<p class="hint" style="margin-top:12px">Suggested opener</p><div class="notes">' +
-          esc(l.suggestedMessage) + '</div>' : '';
+      document.getElementById('suggested').innerHTML = '';
     }
 
     document.getElementById('notes').textContent = l.notes || '';
@@ -212,33 +209,46 @@ Onyx.requireAuth(function () {
     btn.disabled = true;
     Onyx.msg('dmMsg', 'Researching — this takes 20 to 60 seconds...');
 
-    Onyx.worker('enrich', { lead: lead }).then(function (r) {
+    // Keep the AI request intentionally small. The researcher only needs enough
+    // business identity to find a contact, not the entire CRM lead object.
+    var contactLookup = {
+      name: lead.name || '',
+      website: lead.website || '',
+      phone: lead.phone || '',
+      street: lead.street || '',
+      city: lead.city || '',
+      state: lead.state || '',
+      zip: lead.zip || '',
+      category: lead.category || '',
+      mapsUrl: lead.mapsUrl || ''
+    };
+
+    Onyx.worker('enrich', {
+      mode: 'contact_only',
+      fields: ['decisionMakerName', 'email', 'directPhone', 'sources'],
+      lead: contactLookup
+    }).then(function (r) {
       btn.disabled = false;
       if (!r.ok) { Onyx.msg('dmMsg', r.error || 'Research failed.', 'bad'); return; }
-      var d = r.data, f = {};
+      var d = r.data || {}, f = {};
 
-      [['decisionMakerName', 'dmName'], ['decisionMakerTitle', 'dmTitle'],
-       ['decisionMakerConfidence', 'dmConfidence'], ['decisionMakerEvidence', 'dmEvidence'],
-       ['email', 'email'], ['emailStatus', 'emailStatus'], ['emailConfidence', 'emailConfidence'],
-       ['directPhone', 'directPhone'], ['linkedin', 'linkedin'], ['instagram', 'instagram'],
-       ['facebook', 'facebook'], ['services', 'services'], ['existingEquipment', 'existingEquipment'],
-       ['expansionSignals', 'expansionSignals'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
-       ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
-       ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
-       ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],
-       ['enrichedAt', 'enrichedAt'], ['needsHumanReview', 'needsHumanReview']]
-        .forEach(function (p) {
-          var v = d[p[0]];
-          if (v === undefined || v === null || v === '' || v === 'Unknown') return;
-          if (p[1] === 'email' && lead.email) return;   // never overwrite a human's entry
-          f[p[1]] = v;
-        });
+      // Only persist the four things this lookup is supposed to return.
+      // Accept short aliases too, so a leaner Worker schema can use name/phone.
+      var contactName = d.decisionMakerName || d.name;
+      var contactPhone = d.directPhone || d.phone;
+
+      if (contactName && contactName !== 'Unknown') f.dmName = contactName;
+      if (contactPhone && contactPhone !== 'Unknown') f.directPhone = contactPhone;
+      if (d.email && d.email !== 'Unknown' && !lead.email) f.email = d.email;
+      if (d.sources && d.sources !== 'Unknown') {
+        f.sources = Array.isArray(d.sources) ? d.sources.join(' | ') : d.sources;
+      }
 
       if (!lead.stage || lead.stage === 'New Lead') f.stage = 'Researching';
 
       Onyx.sheet('updateLead', { id: id, fields: f }).then(function (u) {
         if (!u.ok) { Onyx.msg('dmMsg', u.error, 'bad'); return; }
-        Onyx.msg('dmMsg', 'Research saved' + (d.needsHumanReview ? ' — flagged for review.' : '.'), 'good');
+        Onyx.msg('dmMsg', 'Contact research saved.', 'good');
         load();
       });
     });
