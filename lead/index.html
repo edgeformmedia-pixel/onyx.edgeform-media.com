@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div id="chrome"></div>
+<div class="wrap">
+  <a class="backlink" href="/pipeline/">&lsaquo; Back to pipeline</a>
+  <div class="page-head">
+    <div><h1 id="name">Loading...</h1><p class="hint" id="sub"></p></div>
+    <div class="actions" style="margin:0" id="topActions"></div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <section class="panel">
+        <h2>Decision maker</h2>
+        <div class="dgrid">
+          <span class="k">Name</span><input id="dmName" placeholder="Not found yet">
+          <span class="k">Title</span><input id="dmTitle" placeholder="Owner, Medical Director...">
+          <span class="k">Email</span><input id="email" placeholder="owner@theirspa.com">
+          <span class="k">Confidence</span>
+          <select id="dmConfidence">
+            <option value="">—</option><option>VERIFIED</option><option>HIGH</option>
+            <option>MEDIUM</option><option>LOW</option>
+          </select>
+          <span class="k">Direct phone</span><input id="directPhone">
+          <span class="k">LinkedIn</span><input id="linkedin">
+          <span class="k">Instagram</span><input id="instagram">
+        </div>
+        <p class="hint" id="dmEvidence" style="margin-top:10px"></p>
+        <div class="actions">
+          <button class="btn primary compact" id="saveDm">Save contact</button>
+          <button class="btn quiet compact" id="research">Research this lead</button>
+          <button class="btn ok compact" id="emailThem" hidden>Email them</button>
+        </div>
+        <p class="msg" id="dmMsg"></p>
+      </section>
+
+      <section class="panel" id="researchPanel" hidden>
+        <h2>Research</h2>
+        <div class="dgrid" id="researchGrid"></div>
+        <div id="suggested"></div>
+      </section>
+    </div>
+
+    <div>
+      <section class="panel">
+        <h2>Pipeline</h2>
+        <div class="dgrid">
+          <span class="k">Stage</span><select id="stage"></select>
+          <span class="k">Owner</span><input id="owner" placeholder="unassigned">
+          <span class="k">Next action</span><input id="nextAction">
+          <span class="k">Callback</span><input type="date" id="nextActionDate">
+        </div>
+        <div class="actions">
+          <button class="btn primary compact" id="savePipe">Save</button>
+          <span class="hint" id="callMeta"></span>
+        </div>
+        <p class="msg" id="pipeMsg"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Business</h2>
+        <div class="dgrid" id="bizGrid"></div>
+        <div class="actions" id="links"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Notes</h2>
+        <textarea id="newNote" rows="3" placeholder="What happened? Saved with your name and the time."></textarea>
+        <div class="actions"><button class="btn quiet compact" id="addNote">Add note</button></div>
+        <div class="notes" id="notes"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Activity</h2>
+        <div id="activity"><p class="hint">Loading...</p></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+Onyx.requireAuth(function () {
+  var id = Onyx.qs('id'), lead = null;
+  if (!id) { location.href = '/pipeline/'; return; }
+
+  function esc(v) { return Onyx.esc(v); }
+  function val(k) { return document.getElementById(k).value.trim(); }
+
+  load();
+
+  function load() {
+    Onyx.sheet('getLead', { id: id }).then(function (r) {
+      if (!r.ok) { document.getElementById('name').textContent = r.error; return; }
+      lead = r.lead;
+      paint(r.lead, r.activity || [], r.stages || []);
+    });
+  }
+
+  function paint(l, activity, stages) {
+    document.title = l.name + ' · ONYX';
+    document.getElementById('name').textContent = l.name;
+    document.getElementById('sub').textContent =
+      [l.category, [l.city, l.state].filter(Boolean).join(', '), l.buyerType].filter(Boolean).join(' · ');
+
+    document.getElementById('topActions').innerHTML =
+      (String(l.isNationalChain) === 'Yes' ? '<span class="tag chain">national chain</span>' : '') +
+      (l.leadScore ? '<span class="' + Onyx.scoreClass(l.leadScore) + '">' + esc(l.leadScore) + '</span>' : '');
+
+    ['dmName', 'dmTitle', 'email', 'dmConfidence', 'directPhone', 'linkedin', 'instagram',
+     'owner', 'nextAction'].forEach(function (k) {
+      document.getElementById(k).value = l[k] || '';
+    });
+    document.getElementById('nextActionDate').value = Onyx.shortDate(l.nextActionDate);
+    document.getElementById('dmEvidence').textContent = l.dmEvidence ? 'Evidence: ' + l.dmEvidence : '';
+    document.getElementById('emailThem').hidden = !l.email;
+
+    var sel = document.getElementById('stage');
+    sel.innerHTML = stages.map(function (s) {
+      return '<option' + (s === l.stage ? ' selected' : '') + '>' + esc(s) + '</option>';
+    }).join('');
+
+    document.getElementById('callMeta').textContent =
+      (l.callAttempts || 0) + ' call attempts' +
+      (l.lastContacted ? ' · last touch ' + Onyx.shortDate(l.lastContacted) : '');
+
+    document.getElementById('bizGrid').innerHTML = [
+      ['Phone', l.phone], ['Address', [l.street, l.city, l.state, l.zip].filter(Boolean).join(', ')],
+      ['Category', l.category], ['Rating', l.rating ? l.rating + ' (' + (l.reviewCount || 0) + ')' : ''],
+      ['In business', l.yearsInBusiness], ['Chain', l.chainBrand || (String(l.isNationalChain) === 'Yes' ? 'Yes' : 'No')],
+      ['Buyer type', l.buyerType], ['Found via', [l.searchTerm, l.searchCity].filter(Boolean).join(' / ')]
+    ].filter(function (p) { return p[1]; })
+      .map(function (p) { return '<span class="k">' + p[0] + '</span><span>' + esc(p[1]) + '</span>'; }).join('');
+
+    document.getElementById('links').innerHTML =
+      (l.website ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.website) + '">Website</a>' : '') +
+      (l.mapsUrl ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.mapsUrl) + '">Maps</a>' : '') +
+      (l.phone ? '<a class="btn quiet compact" href="tel:' + esc(String(l.phone).replace(/\D/g, '')) + '">Call</a>' : '');
+
+    if (l.leadScore || l.salesAngle) {
+      document.getElementById('researchPanel').hidden = false;
+      document.getElementById('researchGrid').innerHTML = [
+        ['Score', l.leadScore + (l.buyerFit ? ' — ' + l.buyerFit : '')],
+        ['Why', l.scoreReasoning], ['Sales angle', l.salesAngle], ['Evidence', l.angleEvidence],
+        ['Services', l.services], ['Equipment', l.existingEquipment],
+        ['Signals', l.expansionSignals], ['Best channel', l.bestChannel], ['Sources', l.sources]
+      ].filter(function (p) { return p[1]; })
+        .map(function (p) { return '<span class="k">' + p[0] + '</span><span>' + esc(p[1]) + '</span>'; }).join('');
+
+      document.getElementById('suggested').innerHTML = l.suggestedMessage
+        ? '<p class="hint" style="margin-top:12px">Suggested opener</p><div class="notes">' +
+          esc(l.suggestedMessage) + '</div>' : '';
+    }
+
+    document.getElementById('notes').textContent = l.notes || '';
+    document.getElementById('activity').innerHTML = activity.length
+      ? '<div class="notes" style="margin:0">' + activity.map(function (a) {
+          return esc(String(a.at).slice(0, 16).replace('T', ' ')) + '  ' + esc(a.user) + '  ' +
+            esc(a.type) + ' — ' + esc(a.detail);
+        }).join('\n') + '</div>'
+      : '<p class="hint">Nothing logged yet.</p>';
+  }
+
+  document.getElementById('saveDm').addEventListener('click', function () {
+    var f = {};
+    ['dmName', 'dmTitle', 'dmConfidence', 'directPhone', 'linkedin', 'instagram'].forEach(function (k) { f[k] = val(k); });
+    f.email = val('email');
+    if (f.email && !lead.emailStatus) f.emailStatus = 'Entered by ' + Onyx.user().name;
+    Onyx.msg('dmMsg', 'Saving...');
+    Onyx.sheet('updateLead', { id: id, fields: f }).then(function (r) {
+      Onyx.msg('dmMsg', r.ok ? 'Saved.' : r.error, r.ok ? 'good' : 'bad');
+      if (r.ok) load();
+    });
+  });
+
+  document.getElementById('savePipe').addEventListener('click', function () {
+    Onyx.msg('pipeMsg', 'Saving...');
+    Onyx.sheet('updateLead', {
+      id: id, fields: {
+        stage: document.getElementById('stage').value, owner: val('owner'),
+        nextAction: val('nextAction'), nextActionDate: document.getElementById('nextActionDate').value
+      }
+    }).then(function (r) {
+      Onyx.msg('pipeMsg', r.ok ? 'Saved.' : r.error, r.ok ? 'good' : 'bad');
+    });
+  });
+
+  document.getElementById('addNote').addEventListener('click', function () {
+    var n = document.getElementById('newNote').value.trim();
+    if (!n) return;
+    Onyx.sheet('addNote', { id: id, note: n }).then(function (r) {
+      if (!r.ok) { Onyx.msg('pipeMsg', r.error, 'bad'); return; }
+      document.getElementById('newNote').value = '';
+      document.getElementById('notes').textContent = r.notes;
+    });
+  });
+
+  document.getElementById('emailThem').addEventListener('click', function () {
+    location.href = '/email/?id=' + encodeURIComponent(id);
+  });
+
+  document.getElementById('research').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    Onyx.msg('dmMsg', 'Researching — this takes 20 to 60 seconds...');
+
+    Onyx.worker('enrich', { lead: lead }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { Onyx.msg('dmMsg', r.error || 'Research failed.', 'bad'); return; }
+      var d = r.data, f = {};
+
+      [['decisionMakerName', 'dmName'], ['decisionMakerTitle', 'dmTitle'],
+       ['decisionMakerConfidence', 'dmConfidence'], ['decisionMakerEvidence', 'dmEvidence'],
+       ['email', 'email'], ['emailStatus', 'emailStatus'], ['emailConfidence', 'emailConfidence'],
+       ['directPhone', 'directPhone'], ['linkedin', 'linkedin'], ['instagram', 'instagram'],
+       ['facebook', 'facebook'], ['services', 'services'], ['existingEquipment', 'existingEquipment'],
+       ['expansionSignals', 'expansionSignals'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
+       ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
+       ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
+       ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],
+       ['enrichedAt', 'enrichedAt'], ['needsHumanReview', 'needsHumanReview']]
+        .forEach(function (p) {
+          var v = d[p[0]];
+          if (v === undefined || v === null || v === '' || v === 'Unknown') return;
+          if (p[1] === 'email' && lead.email) return;   // never overwrite a human's entry
+          f[p[1]] = v;
+        });
+
+      if (!lead.stage || lead.stage === 'New Lead') f.stage = 'Researching';
+
+      Onyx.sheet('updateLead', { id: id, fields: f }).then(function (u) {
+        if (!u.ok) { Onyx.msg('dmMsg', u.error, 'bad'); return; }
+        Onyx.msg('dmMsg', 'Research saved' + (d.needsHumanReview ? ' — flagged for review.' : '.'), 'good');
+        load();
+      });
+    });
+  });
+});
+</script>
+</body>
+</html>

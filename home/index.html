@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div id="chrome"></div>
+<div class="wrap">
+  <div class="page-head">
+    <div><h1 id="greet">Home</h1><p class="hint" id="sub">Loading your numbers...</p></div>
+    <div class="actions" style="margin:0">
+      <a class="btn quiet compact" href="/calls/">Start calling</a>
+      <a class="btn primary compact" href="/pipeline/">Open pipeline</a>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>Pipeline by stage</h2>
+      <table class="grid small"><tbody id="stageRows"></tbody></table>
+    </section>
+    <section class="panel">
+      <h2>Recent activity</h2>
+      <div id="recent"><p class="hint">Loading...</p></div>
+    </section>
+  </div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+Onyx.requireAuth(function (user) {
+  document.getElementById('greet').textContent = 'Hey ' + String(user.name).split(' ')[0];
+
+  Onyx.sheet('stats', {}).then(function (r) {
+    if (!r.ok) { Onyx.msg(document.getElementById('sub'), r.error, 'bad'); return; }
+
+    document.getElementById('sub').textContent =
+      r.total + ' leads in the database, ' + r.mine + ' assigned to you.';
+
+    var cards = [
+      { n: r.total, l: 'Total leads', href: '/pipeline/' },
+      { n: r.mine, l: 'Assigned to me', href: '/pipeline/' },
+      { n: r.needResearch, l: 'Need research', href: '/pipeline/?needsResearch=1', alert: r.needResearch > 0 },
+      { n: r.needEmail, l: 'Missing email', href: '/pipeline/?needsEmail=1' },
+      { n: r.byStage['Ready to Call'] || 0, l: 'Ready to call', href: '/calls/' },
+      { n: r.byStage['Interested'] || 0, l: 'Interested', href: '/pipeline/?stage=Interested' },
+      { n: r.byStage['Demo Booked'] || 0, l: 'Demos booked', href: '/pipeline/?stage=Demo%20Booked' },
+      { n: r.byStage['Won'] || 0, l: 'Won', href: '/pipeline/?stage=Won' }
+    ];
+    if (user.role === 'admin' && r.pendingRequests) {
+      cards.unshift({ n: r.pendingRequests, l: 'Access requests', href: '/admin/?tab=requests', alert: true });
+    }
+
+    document.getElementById('stats').innerHTML = cards.map(function (c) {
+      return '<a class="stat' + (c.alert ? ' alert' : '') + '" href="' + c.href + '">' +
+        '<b>' + c.n + '</b><span>' + c.l + '</span></a>';
+    }).join('');
+
+    document.getElementById('stageRows').innerHTML = r.stages.map(function (s) {
+      var n = r.byStage[s] || 0;
+      return '<tr><td>' + Onyx.esc(s) + '</td><td style="text-align:right;font-variant-numeric:tabular-nums">' +
+        (n ? n : '<span class="muted">0</span>') + '</td></tr>';
+    }).join('');
+
+    var recent = r.recent || [];
+    document.getElementById('recent').innerHTML = recent.length
+      ? '<div class="notes" style="margin:0;max-height:270px">' + recent.map(function (a) {
+          return Onyx.esc(String(a.at).slice(5, 16).replace('T', ' ')) + '  ' +
+            Onyx.esc(a.user) + '  ' + Onyx.esc(a.type) + ' — ' +
+            Onyx.esc(a.leadName || '') + ' ' + Onyx.esc(String(a.detail || '').slice(0, 70));
+        }).join('\n') + '</div>'
+      : '<p class="hint">Nothing logged yet. Calls, notes and emails show up here.</p>';
+  });
+});
+</script>
+</body>
+</html>

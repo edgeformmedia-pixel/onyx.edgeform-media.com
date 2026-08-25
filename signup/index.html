@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request access · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div class="auth">
+  <form class="auth-card" id="form">
+    <div class="brand">ONYX</div>
+    <p class="sub">Request an account</p>
+
+    <div class="two">
+      <div class="field">
+        <label for="fn">First name</label>
+        <input type="text" id="fn" autocomplete="given-name" required>
+      </div>
+      <div class="field">
+        <label for="ln">Last name</label>
+        <input type="text" id="ln" autocomplete="family-name" required>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="em">Work email</label>
+      <input type="email" id="em" autocomplete="email" placeholder="you@edgeform-media.com" required>
+    </div>
+
+    <div class="field">
+      <label for="nt">Anything the admin should know <span class="muted">(optional)</span></label>
+      <textarea id="nt" rows="3" placeholder="Starting on the Miami desk Monday"></textarea>
+    </div>
+
+    <button class="btn primary full" type="submit" id="go">Send request</button>
+    <p class="msg" id="m"></p>
+
+    <div id="done" hidden>
+      <div class="empty-state" style="padding:26px 0">
+        <h3>Request sent</h3>
+        <p class="hint">An admin has been emailed. Once they approve you, you'll get a link to set your password.</p>
+      </div>
+    </div>
+
+    <div class="auth-foot">
+      <a href="/">Back to sign in</a>
+      <span class="muted">Approval required</span>
+    </div>
+  </form>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+document.getElementById('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('go');
+  btn.disabled = true;
+  Onyx.msg('m', 'Sending...');
+
+  Onyx.sheet('requestAccess', {
+    firstName: document.getElementById('fn').value.trim(),
+    lastName: document.getElementById('ln').value.trim(),
+    email: document.getElementById('em').value.trim(),
+    note: document.getElementById('nt').value.trim()
+  }).then(function (r) {
+    btn.disabled = false;
+    if (!r.ok) { Onyx.msg('m', r.error, 'bad'); return; }
+    document.getElementById('form').querySelectorAll('.field, .two, #go').forEach(function (n) { n.hidden = true; });
+    document.getElementById('done').hidden = false;
+    Onyx.msg('m', r.message || '', 'good');
+  });
+});
+</script>
+</body>
+</html>

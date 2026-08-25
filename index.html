@@ -3,176 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ONYX CRM</title>
-<link rel="stylesheet" href="styles.css">
+<title>Sign in · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-
-<!-- ══ LOGIN ══ -->
-<div id="login" class="login-wrap">
-  <form class="login-card" id="loginForm">
-    <h1>ONYX</h1>
+<div class="auth">
+  <form class="auth-card" id="form">
+    <div class="brand">ONYX</div>
     <p class="sub">Edgeform Media sales</p>
-    <input type="text" id="lu" placeholder="Username" autocomplete="username" required>
-    <input type="password" id="lp" placeholder="Password" autocomplete="current-password" required>
-    <button class="btn primary" type="submit" id="loginBtn">Sign in</button>
-    <p class="msg" id="loginMsg"></p>
+
+    <div class="field">
+      <label for="u">Username or email</label>
+      <input type="text" id="u" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="p">Password</label>
+      <input type="password" id="p" autocomplete="current-password" required>
+    </div>
+
+    <button class="btn primary full" type="submit" id="go">Sign in</button>
+    <p class="msg" id="m"></p>
+
+    <div class="auth-foot">
+      <a href="/signup/">Request access</a>
+      <button type="button" class="link" id="forgot">Forgot password</button>
+    </div>
   </form>
 </div>
 
-<!-- ══ APP ══ -->
-<div id="app" hidden>
-  <header class="top">
-    <div class="logo">ONYX</div>
-    <nav class="tabs">
-      <button class="tab active" data-view="pipeline">Pipeline</button>
-      <button class="tab" data-view="calls">Call list</button>
-      <button class="tab" data-view="email">Email</button>
-      <button class="tab" data-view="admin">Admin</button>
-    </nav>
-    <div class="who">
-      <span id="whoName"></span>
-      <button id="logout" class="link">Sign out</button>
-    </div>
-  </header>
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+(function () {
+  if (Onyx.qs('expired')) Onyx.msg('m', 'Your session expired. Sign in again.', 'warn');
 
-  <div class="statbar" id="statbar"></div>
+  document.getElementById('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('go');
+    btn.disabled = true;
+    Onyx.msg('m', 'Checking...');
 
-  <!-- ── PIPELINE ── -->
-  <main class="view" id="view-pipeline">
-    <div class="toolbar">
-      <input type="search" id="q" placeholder="Search name, city, contact, phone…">
-      <select id="fStage"><option value="">All stages</option></select>
-      <label class="chk"><input type="checkbox" id="fChains"> Hide chains</label>
-      <label class="chk"><input type="checkbox" id="fNoEmail"> Missing email only</label>
-      <button id="refresh" class="btn quiet">Refresh</button>
-    </div>
-    <div class="tablewrap">
-      <table class="grid">
-        <thead><tr>
-          <th>Score</th><th>Business</th><th>City</th><th>Decision maker</th>
-          <th>Email</th><th>Phone</th><th>Stage</th><th>Owner</th>
-        </tr></thead>
-        <tbody id="leadRows"></tbody>
-      </table>
-    </div>
-    <div class="pager"><button id="prev" class="btn quiet">‹ Back</button>
-      <span id="pageInfo"></span><button id="next" class="btn quiet">Next ›</button></div>
-  </main>
+    Onyx.sheet('login', {
+      username: document.getElementById('u').value.trim(),
+      password: document.getElementById('p').value
+    }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { Onyx.msg('m', r.error || 'Sign-in failed.', 'bad'); return; }
+      Onyx.setSession(r.token, r.user);
+      location.href = '/home/';
+    });
+  });
 
-  <!-- ── CALL LIST ── -->
-  <main class="view" id="view-calls" hidden>
-    <div class="toolbar">
-      <label class="chk"><input type="checkbox" id="mineOnly"> Only leads assigned to me</label>
-      <button id="loadQueue" class="btn quiet">Rebuild queue</button>
-      <span class="grow"></span>
-      <span class="hint" id="queueInfo"></span>
-    </div>
-    <div class="callsplit">
-      <ul class="queue" id="queue"></ul>
-      <section class="callcard" id="callCard">
-        <p class="empty">Pick someone from the queue to start dialing.</p>
-      </section>
-    </div>
-  </main>
-
-  <!-- ── EMAIL ── -->
-  <main class="view" id="view-email" hidden>
-    <div class="composer">
-      <div class="row">
-        <label>To</label>
-        <input type="email" id="eTo" placeholder="owner@theirspa.com">
-        <span class="pill" id="eLead">No lead selected</span>
-      </div>
-      <div class="row">
-        <label>From</label>
-        <select id="eFrom"></select>
-        <span class="hint">@edgeform-media.com</span>
-      </div>
-      <div class="row">
-        <label>Template</label>
-        <select id="eTemplate"></select>
-        <button id="applyTpl" class="btn quiet compact">Apply</button>
-        <span class="hint">Merge fields: {{business}} {{firstName}} {{city}} {{myName}}</span>
-      </div>
-      <div class="row">
-        <label>Subject</label>
-        <input type="text" id="eSubject" placeholder="Quick question about your laser setup">
-      </div>
-      <textarea id="eBody" placeholder="Write the message. Plain text with line breaks is fine."></textarea>
-      <div class="row footer-row">
-        <button id="sendEmail" class="btn primary">Send</button>
-        <button id="previewEmail" class="btn quiet">Preview</button>
-        <span class="msg" id="emailMsg"></span>
-      </div>
-      <p class="hint">
-        Every send appends your unsubscribe line and postal address, which CAN-SPAM requires.
-        Set both in Admin.
-      </p>
-    </div>
-    <div class="preview" id="preview" hidden></div>
-  </main>
-
-  <!-- ── ADMIN ── -->
-  <main class="view" id="view-admin" hidden>
-    <section class="panel">
-      <h2>Connection</h2>
-      <label class="frow"><span>Apps Script /exec URL</span><input type="text" id="cfgSheet"></label>
-      <label class="frow"><span>Sheet secret</span><input type="password" id="cfgSheetSecret"></label>
-      <label class="frow"><span>Worker URL</span><input type="text" id="cfgWorker"></label>
-      <label class="frow"><span>Worker secret</span><input type="password" id="cfgWorkerSecret"></label>
-      <div class="frow"><span></span><div>
-        <button id="saveCfg" class="btn primary compact">Save</button>
-        <button id="testCfg" class="btn quiet compact">Test both</button>
-      </div></div>
-      <p class="msg" id="cfgMsg"></p>
-      <p class="hint">Stored in this browser only. No keys here — those live in the Worker.</p>
-    </section>
-
-    <section class="panel">
-      <h2>Email footer</h2>
-      <label class="frow"><span>Postal address</span><input type="text" id="cfgAddress" placeholder="123 Example Ave, Miami FL 33131"></label>
-      <label class="frow"><span>Unsubscribe line</span><input type="text" id="cfgUnsub" placeholder="Reply STOP and I won't contact you again."></label>
-      <div class="frow"><span></span><button id="saveFooter" class="btn primary compact">Save</button></div>
-      <p class="hint">A real postal address and a working opt-out are both legally required on cold email.</p>
-    </section>
-
-    <section class="panel" id="userPanel">
-      <h2>Sales force</h2>
-      <table class="grid small"><thead><tr><th>User</th><th>Name</th><th>Role</th><th>Last login</th></tr></thead>
-        <tbody id="userRows"></tbody></table>
-      <div class="adder">
-        <input type="text" id="nuUser" placeholder="username">
-        <input type="text" id="nuName" placeholder="Full name">
-        <input type="password" id="nuPass" placeholder="password (8+)">
-        <select id="nuRole"><option value="rep">rep</option><option value="admin">admin</option></select>
-        <button id="addUser" class="btn quiet compact">Add</button>
-      </div>
-      <p class="msg" id="userMsg"></p>
-    </section>
-
-    <section class="panel">
-      <h2>Your password</h2>
-      <div class="adder">
-        <input type="password" id="pw1" placeholder="New password (8+)">
-        <button id="changePw" class="btn quiet compact">Change</button>
-      </div>
-      <p class="msg" id="pwMsg"></p>
-    </section>
-  </main>
-</div>
-
-<!-- ══ LEAD DRAWER ══ -->
-<aside id="drawer" class="drawer" hidden>
-  <div class="drawer-head">
-    <div><h2 id="dName">—</h2><p class="hint" id="dSub"></p></div>
-    <button id="closeDrawer" class="link">Close</button>
-  </div>
-  <div class="drawer-body" id="drawerBody"></div>
-</aside>
-<div id="scrim" class="scrim" hidden></div>
-
-<script src="config.js"></script>
-<script src="app.js"></script>
+  document.getElementById('forgot').addEventListener('click', function () {
+    var email = prompt('What email address is on your account?');
+    if (!email) return;
+    Onyx.msg('m', 'Sending...');
+    Onyx.sheet('forgotPassword', { email: email.trim() }).then(function (r) {
+      Onyx.msg('m', r.message || 'If that address has an account, a reset link is on its way.', 'good');
+    });
+  });
+})();
+</script>
 </body>
 </html>

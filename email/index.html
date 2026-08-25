@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div id="chrome"></div>
+<div class="wrap">
+  <div class="page-head">
+    <div><h1>Email</h1><p class="hint">Sends through Resend from your @edgeform-media.com address.</p></div>
+  </div>
+
+  <section class="panel composer" style="max-width:860px">
+    <div class="row">
+      <label for="to">To</label>
+      <input type="email" id="to" placeholder="owner@theirspa.com">
+      <span class="pill" id="who">No lead attached</span>
+    </div>
+    <div class="row">
+      <label for="from">From</label>
+      <select id="from"></select>
+      <span class="hint" id="domain"></span>
+    </div>
+    <div class="row">
+      <label for="tpl">Template</label>
+      <select id="tpl"></select>
+      <button class="btn quiet compact" id="apply">Apply</button>
+      <span class="hint">{{business}} {{firstName}} {{city}} {{myName}}</span>
+    </div>
+    <div class="row">
+      <label for="subject">Subject</label>
+      <input type="text" id="subject" placeholder="Quick question about your laser setup">
+    </div>
+    <textarea id="body" placeholder="Write the message. Plain text with line breaks is fine."></textarea>
+    <div class="actions">
+      <button class="btn primary" id="send">Send</button>
+      <button class="btn quiet" id="preview">Preview</button>
+      <span class="msg" id="m" style="margin:0"></span>
+    </div>
+    <p class="hint" style="margin-top:12px">
+      Your unsubscribe line and postal address are appended automatically. CAN-SPAM requires both.
+      Set them in <a href="/admin/">Admin</a>.
+    </p>
+  </section>
+
+  <div class="preview" id="pv" hidden></div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+Onyx.requireAuth(function (user) {
+  var CFG = Onyx.cfg, TPL = window.ONYX_TEMPLATES || [], lead = null;
+
+  document.getElementById('domain').textContent = '@' + CFG.SEND_DOMAIN;
+
+  var fromSel = document.getElementById('from');
+  var mine = String(user.email || '').split('@')[0];
+  [].concat(mine ? [mine] : [], CFG.FROM_OPTIONS || [])
+    .filter(function (v, i, a) { return v && a.indexOf(v) === i; })
+    .forEach(function (v) {
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v + '@' + CFG.SEND_DOMAIN;
+      fromSel.appendChild(o);
+    });
+
+  var tplSel = document.getElementById('tpl');
+  tplSel.innerHTML = '<option value="">— pick a template —</option>';
+  TPL.forEach(function (t, i) {
+    var o = document.createElement('option');
+    o.value = i; o.textContent = t.name;
+    tplSel.appendChild(o);
+  });
+
+  var id = Onyx.qs('id');
+  if (id) {
+    Onyx.sheet('getLead', { id: id }).then(function (r) {
+      if (!r.ok) return;
+      lead = r.lead;
+      document.getElementById('to').value = lead.email || '';
+      document.getElementById('who').textContent = lead.name;
+    });
+  }
+
+  function merge(t) {
+    var l = lead || {};
+    var first = String(l.dmName || '').trim().split(/\s+/)[0] || 'there';
+    return String(t || '')
+      .replace(/\{\{business\}\}/g, l.name || 'your practice')
+      .replace(/\{\{firstName\}\}/g, first)
+      .replace(/\{\{city\}\}/g, l.city || 'your area')
+      .replace(/\{\{myName\}\}/g, user.name || '');
+  }
+
+  document.getElementById('apply').addEventListener('click', function () {
+    var i = tplSel.value;
+    if (i === '') return;
+    document.getElementById('subject').value = merge(TPL[i].subject);
+    document.getElementById('body').value = merge(TPL[i].body);
+  });
+
+  function html(text) {
+    var foot = [];
+    if (CFG.UNSUBSCRIBE_LINE) foot.push(Onyx.esc(CFG.UNSUBSCRIBE_LINE));
+    if (CFG.POSTAL_ADDRESS) foot.push(Onyx.esc(CFG.POSTAL_ADDRESS));
+    return '<div style="font:14px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111">' +
+      Onyx.esc(text).replace(/\n/g, '<br>') +
+      (foot.length ? '<hr style="border:0;border-top:1px solid #ddd;margin:24px 0 10px">' +
+        '<div style="font-size:11px;color:#888">' + foot.join('<br>') + '</div>' : '') + '</div>';
+  }
+
+  document.getElementById('preview').addEventListener('click', function () {
+    var pv = document.getElementById('pv');
+    pv.hidden = false;
+    pv.innerHTML = '<div style="color:#666;font-size:12px;margin-bottom:12px">' +
+      Onyx.esc(fromSel.value + '@' + CFG.SEND_DOMAIN) + ' &rarr; ' +
+      Onyx.esc(document.getElementById('to').value) +
+      '<br><b style="color:#111;font-size:14px">' + Onyx.esc(document.getElementById('subject').value) +
+      '</b></div>' + html(document.getElementById('body').value);
+  });
+
+  document.getElementById('send').addEventListener('click', function () {
+    var to = document.getElementById('to').value.trim();
+    var subject = document.getElementById('subject').value.trim();
+    var body = document.getElementById('body').value;
+
+    if (!to) { Onyx.msg('m', 'Who is this going to?', 'bad'); return; }
+    if (!subject) { Onyx.msg('m', 'Add a subject line.', 'bad'); return; }
+    if (!body.trim()) { Onyx.msg('m', 'The message is empty.', 'bad'); return; }
+    if (!CFG.POSTAL_ADDRESS) { Onyx.msg('m', 'Add a postal address in Admin first — CAN-SPAM requires it.', 'bad'); return; }
+    if (/\{\{/.test(subject + body)) { Onyx.msg('m', 'There is still an unfilled {{merge field}}.', 'bad'); return; }
+
+    var btn = this;
+    btn.disabled = true;
+    Onyx.msg('m', 'Sending...');
+
+    Onyx.worker('email', {
+      to: to, subject: subject, html: html(body), text: body,
+      fromLocal: fromSel.value, fromName: user.name || 'Edgeform Media',
+      replyTo: user.email || ''
+    }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { Onyx.msg('m', r.error || 'Send failed.', 'bad'); return; }
+      Onyx.msg('m', 'Sent to ' + to + '.', 'good');
+      Onyx.sheet('logSend', {
+        id: lead ? lead.id : '', to: to, fromLocal: fromSel.value,
+        subject: subject, resendId: r.id, status: 'sent'
+      });
+    });
+  });
+});
+</script>
+</body>
+</html>

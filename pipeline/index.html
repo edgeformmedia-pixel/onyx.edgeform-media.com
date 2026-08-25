@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div id="chrome"></div>
+<div class="wrap">
+  <div class="page-head">
+    <div><h1>Pipeline</h1><p class="hint" id="sub">Loading...</p></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Search business, city, contact, phone...">
+    <select id="stage"><option value="">All stages</option></select>
+    <label class="chk"><input type="checkbox" id="chains"> Hide chains</label>
+    <label class="chk"><input type="checkbox" id="noEmail"> Missing email</label>
+    <label class="chk"><input type="checkbox" id="noResearch"> Not researched</label>
+    <button class="btn quiet compact" id="reload">Refresh</button>
+  </div>
+
+  <div class="tablewrap">
+    <table class="grid">
+      <thead><tr>
+        <th style="width:64px">Score</th><th>Business</th><th>City</th>
+        <th>Decision maker</th><th>Email</th><th>Phone</th><th>Stage</th><th>Owner</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <button class="btn quiet compact" id="prev">Back</button>
+    <span id="pageInfo"></span>
+    <button class="btn quiet compact" id="next">Next</button>
+  </div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+Onyx.requireAuth(function () {
+  var page = 0, size = 50;
+
+  if (Onyx.qs('needsEmail')) document.getElementById('noEmail').checked = true;
+  if (Onyx.qs('needsResearch')) document.getElementById('noResearch').checked = true;
+
+  Onyx.sheet('stats', {}).then(function (r) {
+    if (!r.ok) return;
+    var sel = document.getElementById('stage');
+    r.stages.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      sel.appendChild(o);
+    });
+    var want = Onyx.qs('stage');
+    if (want) sel.value = want;
+    load();
+  });
+
+  function load() {
+    document.getElementById('rows').innerHTML = '<tr><td colspan="8" class="muted">Loading...</td></tr>';
+    Onyx.sheet('listLeads', {
+      q: document.getElementById('q').value,
+      stage: document.getElementById('stage').value,
+      hideChains: document.getElementById('chains').checked,
+      needsEmail: document.getElementById('noEmail').checked,
+      needsResearch: document.getElementById('noResearch').checked,
+      page: page, size: size
+    }).then(render);
+  }
+
+  function render(r) {
+    var tb = document.getElementById('rows');
+    if (!r.ok) { tb.innerHTML = '<tr><td colspan="8" class="muted">' + Onyx.esc(r.error) + '</td></tr>'; return; }
+
+    document.getElementById('sub').textContent = r.total + ' leads match';
+
+    if (!r.leads.length) {
+      tb.innerHTML = '<tr><td colspan="8"><div class="empty-state"><h3>Nothing here</h3>' +
+        '<p class="hint">Loosen the filters, or run the LeadHunter extension to pull more leads in.</p>' +
+        '</div></td></tr>';
+    } else {
+      tb.innerHTML = r.leads.map(function (l) {
+        return '<tr class="click" data-id="' + Onyx.esc(l.id) + '">' +
+          '<td><span class="' + Onyx.scoreClass(l.leadScore) + '">' + (l.leadScore || '-') + '</span></td>' +
+          '<td>' + Onyx.esc(l.name) +
+            (String(l.isNationalChain) === 'Yes' ? '<span class="tag chain">chain</span>' : '') +
+            (l.needsHumanReview === true || String(l.needsHumanReview).toUpperCase() === 'TRUE'
+              ? '<span class="tag review">review</span>' : '') + '</td>' +
+          '<td>' + Onyx.esc(l.city || '') + '</td>' +
+          '<td>' + (l.dmName
+            ? Onyx.esc(l.dmName) + (l.dmTitle ? '<span class="tag">' + Onyx.esc(l.dmTitle) + '</span>' : '')
+            : '<span class="muted">not found</span>') + '</td>' +
+          '<td>' + (l.email ? Onyx.esc(l.email) : '<span class="muted">-</span>') + '</td>' +
+          '<td>' + Onyx.esc(l.phone || '') + '</td>' +
+          '<td>' + Onyx.esc(l.stage || '') + '</td>' +
+          '<td>' + Onyx.esc(l.owner || '') + '</td></tr>';
+      }).join('');
+    }
+
+    var start = r.page * size;
+    document.getElementById('pageInfo').textContent = r.total
+      ? (start + 1) + '-' + Math.min(r.total, start + size) + ' of ' + r.total : '0';
+    document.getElementById('prev').disabled = r.page === 0;
+    document.getElementById('next').disabled = start + size >= r.total;
+  }
+
+  document.getElementById('rows').addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-id]');
+    if (tr) location.href = '/lead/?id=' + encodeURIComponent(tr.dataset.id);
+  });
+
+  document.getElementById('q').addEventListener('input', Onyx.debounce(function () { page = 0; load(); }, 350));
+  ['stage', 'chains', 'noEmail', 'noResearch'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () { page = 0; load(); });
+  });
+  document.getElementById('reload').addEventListener('click', load);
+  document.getElementById('prev').addEventListener('click', function () { if (page > 0) { page--; load(); } });
+  document.getElementById('next').addEventListener('click', function () { page++; load(); });
+});
+</script>
+</body>
+</html>

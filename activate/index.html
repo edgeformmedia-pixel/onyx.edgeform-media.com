@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set your password · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div class="auth">
+  <div class="auth-card">
+    <div class="brand">ONYX</div>
+    <p class="sub" id="sub">Checking your link...</p>
+
+    <form id="form" hidden>
+      <p class="hint" id="forWho" style="margin-bottom:16px"></p>
+      <div class="field">
+        <label for="p1">Choose a password</label>
+        <input type="password" id="p1" autocomplete="new-password" minlength="8" required>
+      </div>
+      <div class="field">
+        <label for="p2">Type it again</label>
+        <input type="password" id="p2" autocomplete="new-password" minlength="8" required>
+      </div>
+      <button class="btn primary full" type="submit" id="go">Create my account</button>
+      <p class="msg" id="m"></p>
+    </form>
+
+    <div id="bad" hidden>
+      <div class="empty-state" style="padding:22px 0">
+        <h3 id="badTitle">This link is not valid</h3>
+        <p class="hint" id="badMsg"></p>
+      </div>
+      <a class="btn quiet full" href="/signup/">Request access again</a>
+    </div>
+
+    <div id="done" hidden>
+      <div class="empty-state" style="padding:22px 0">
+        <h3>You're all set</h3>
+        <p class="hint">Your account is ready.</p>
+      </div>
+      <a class="btn primary full" href="/">Go to sign in</a>
+    </div>
+
+    <div class="auth-foot"><a href="/">Back to sign in</a><span class="muted">ONYX CRM</span></div>
+  </div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+(function () {
+  var token = Onyx.qs('id');
+  var sub = document.getElementById('sub');
+
+  if (!token) { fail('No link token', 'The address is missing its ?id= token.'); return; }
+
+  Onyx.sheet('checkInvite', { token: token }).then(function (r) {
+    if (!r.ok) { fail('This link is not valid', r.error); return; }
+    sub.textContent = r.kind === 'reset' ? 'Reset your password' : 'Finish creating your account';
+    document.getElementById('forWho').textContent = 'For ' + r.email;
+    document.getElementById('form').hidden = false;
+  });
+
+  function fail(title, message) {
+    sub.textContent = '';
+    document.getElementById('badTitle').textContent = title;
+    document.getElementById('badMsg').textContent = message || '';
+    document.getElementById('bad').hidden = false;
+  }
+
+  document.getElementById('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p1 = document.getElementById('p1').value, p2 = document.getElementById('p2').value;
+    if (p1.length < 8) { Onyx.msg('m', 'Use at least 8 characters.', 'bad'); return; }
+    if (p1 !== p2) { Onyx.msg('m', 'Those two passwords do not match.', 'bad'); return; }
+
+    var btn = document.getElementById('go');
+    btn.disabled = true;
+    Onyx.msg('m', 'Saving...');
+
+    Onyx.sheet('activate', { token: token, password: p1 }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { Onyx.msg('m', r.error, 'bad'); return; }
+      document.getElementById('form').hidden = true;
+      sub.textContent = '';
+      document.getElementById('done').hidden = false;
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div id="chrome"></div>
+<div class="wrap">
+  <div class="page-head">
+    <div><h1>Admin</h1><p class="hint">Approvals, users, and this browser's connection settings.</p></div>
+  </div>
+
+  <section class="panel" id="reqPanel">
+    <h2>Access requests <span class="tag" id="reqCount"></span></h2>
+    <div id="reqs"><p class="hint">Loading...</p></div>
+    <p class="msg" id="reqMsg"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Invite someone directly</h2>
+    <div class="adder">
+      <input type="email" id="ivEmail" placeholder="them@edgeform-media.com">
+      <input type="text" id="ivName" placeholder="Full name">
+      <select id="ivRole" style="flex:0 0 110px"><option value="rep">rep</option><option value="admin">admin</option></select>
+      <button class="btn primary compact" id="invite">Send invite</button>
+    </div>
+    <p class="msg" id="ivMsg"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Sales force</h2>
+    <table class="grid small">
+      <thead><tr><th>User</th><th>Name</th><th>Email</th><th>Role</th><th>Last login</th><th></th></tr></thead>
+      <tbody id="users"></tbody>
+    </table>
+    <p class="msg" id="uMsg"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Connection</h2>
+    <div class="frow"><span>Apps Script /exec</span><input type="text" id="cSheet"></div>
+    <div class="frow"><span>Sheet secret</span><input type="password" id="cSheetSecret"></div>
+    <div class="frow"><span>Worker URL</span><input type="text" id="cWorker"></div>
+    <div class="frow"><span>Worker secret</span><input type="password" id="cWorkerSecret"></div>
+    <div class="actions">
+      <button class="btn primary compact" id="saveConn">Save</button>
+      <button class="btn quiet compact" id="testConn">Test both</button>
+    </div>
+    <p class="msg" id="cMsg"></p>
+    <p class="hint">Saved in this browser only. API keys are not here — they live in the Worker.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Email footer</h2>
+    <div class="frow"><span>Postal address</span><input type="text" id="cAddr" placeholder="123 Example Ave, Miami FL 33131"></div>
+    <div class="frow"><span>Unsubscribe line</span><input type="text" id="cUnsub"></div>
+    <div class="actions"><button class="btn primary compact" id="saveFoot">Save</button></div>
+    <p class="msg" id="fMsg"></p>
+    <p class="hint">Both are legally required on cold email. Sending is blocked without an address.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Your password</h2>
+    <div class="adder">
+      <input type="password" id="pw" placeholder="New password (8+ characters)">
+      <button class="btn quiet compact" id="changePw">Change</button>
+    </div>
+    <p class="msg" id="pMsg"></p>
+  </section>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+Onyx.requireAuth(function (user) {
+  var CFG = Onyx.cfg;
+
+  if (user.role !== 'admin') {
+    document.getElementById('reqPanel').hidden = true;
+    document.querySelectorAll('.panel')[1].hidden = true;
+    document.querySelectorAll('.panel')[2].hidden = true;
+  } else {
+    loadRequests();
+    loadUsers();
+  }
+
+  document.getElementById('cSheet').value = CFG.SHEET_URL || '';
+  document.getElementById('cSheetSecret').value = CFG.SHEET_SECRET || '';
+  document.getElementById('cWorker').value = CFG.WORKER_URL || '';
+  document.getElementById('cWorkerSecret').value = CFG.WORKER_SECRET || '';
+  document.getElementById('cAddr').value = CFG.POSTAL_ADDRESS || '';
+  document.getElementById('cUnsub').value = CFG.UNSUBSCRIBE_LINE || '';
+
+  function loadRequests() {
+    Onyx.sheet('listRequests', {}).then(function (r) {
+      if (!r.ok) { document.getElementById('reqs').innerHTML = '<p class="hint">' + Onyx.esc(r.error) + '</p>'; return; }
+      var pending = r.requests.filter(function (x) { return x.status === 'pending'; });
+      document.getElementById('reqCount').textContent = pending.length + ' pending';
+
+      if (!r.requests.length) {
+        document.getElementById('reqs').innerHTML = '<p class="hint">No one has asked for access yet.</p>';
+        return;
+      }
+
+      document.getElementById('reqs').innerHTML = r.requests.map(function (q) {
+        var isPending = q.status === 'pending';
+        return '<div class="req">' +
+          '<div class="who2"><b>' + Onyx.esc(q.firstName + ' ' + q.lastName) + '</b>' +
+            '<span>' + Onyx.esc(q.email) + ' · ' + Onyx.shortDate(q.requestedAt) + '</span>' +
+            (q.note ? '<span>"' + Onyx.esc(q.note) + '"</span>' : '') + '</div>' +
+          (isPending
+            ? '<button class="btn ok compact ap" data-id="' + Onyx.esc(q.id) + '">Approve</button>' +
+              '<button class="btn danger compact rj" data-id="' + Onyx.esc(q.id) + '">Reject</button>'
+            : '<span class="tag ' + (q.status === 'approved' ? 'ok' : '') + '">' + Onyx.esc(q.status) +
+              (q.decidedBy ? ' by ' + Onyx.esc(q.decidedBy) : '') + '</span>') +
+          '</div>';
+      }).join('');
+
+      document.querySelectorAll('.ap').forEach(function (b) {
+        b.addEventListener('click', function () { decide('approveRequest', b.dataset.id, b); });
+      });
+      document.querySelectorAll('.rj').forEach(function (b) {
+        b.addEventListener('click', function () {
+          if (confirm('Reject this request?')) decide('rejectRequest', b.dataset.id, b);
+        });
+      });
+    });
+  }
+
+  function decide(action, id, btn) {
+    btn.disabled = true;
+    Onyx.msg('reqMsg', 'Working...');
+    Onyx.sheet(action, { id: id }).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { Onyx.msg('reqMsg', r.error, 'bad'); return; }
+      if (r.emailed === false && r.link) {
+        Onyx.msg('reqMsg', 'Approved, but the email did not go out. Send them this link: ' + r.link, 'warn');
+      } else {
+        Onyx.msg('reqMsg', r.message || 'Done.', 'good');
+      }
+      loadRequests(); loadUsers();
+    });
+  }
+
+  function loadUsers() {
+    Onyx.sheet('listUsers', {}).then(function (r) {
+      if (!r.ok) return;
+      document.getElementById('users').innerHTML = r.users.map(function (u) {
+        return '<tr><td>' + Onyx.esc(u.username) + '</td><td>' + Onyx.esc(u.name) + '</td>' +
+          '<td class="muted">' + Onyx.esc(u.email || '') + '</td><td>' + Onyx.esc(u.role) + '</td>' +
+          '<td class="muted">' + Onyx.shortDate(u.lastLogin) + '</td>' +
+          '<td>' + (u.username === user.username ? '<span class="muted">you</span>' :
+            '<button class="link tg" data-u="' + Onyx.esc(u.username) + '" data-a="' + (u.active ? '0' : '1') + '">' +
+            (u.active ? 'Disable' : 'Enable') + '</button>') + '</td></tr>';
+      }).join('');
+
+      document.querySelectorAll('.tg').forEach(function (b) {
+        b.addEventListener('click', function () {
+          Onyx.sheet('setUserActive', { username: b.dataset.u, active: b.dataset.a === '1' }).then(function (r) {
+            Onyx.msg('uMsg', r.ok ? 'Updated.' : r.error, r.ok ? 'good' : 'bad');
+            loadUsers();
+          });
+        });
+      });
+    });
+  }
+
+  document.getElementById('invite').addEventListener('click', function () {
+    Onyx.msg('ivMsg', 'Sending...');
+    Onyx.sheet('inviteUser', {
+      email: document.getElementById('ivEmail').value.trim(),
+      name: document.getElementById('ivName').value.trim(),
+      role: document.getElementById('ivRole').value
+    }).then(function (r) {
+      if (!r.ok) { Onyx.msg('ivMsg', r.error, 'bad'); return; }
+      Onyx.msg('ivMsg', r.emailed ? 'Invite sent.' : 'Invite created but email failed. Link: ' + r.link,
+        r.emailed ? 'good' : 'warn');
+      document.getElementById('ivEmail').value = '';
+      document.getElementById('ivName').value = '';
+    });
+  });
+
+  document.getElementById('saveConn').addEventListener('click', function () {
+    Onyx.saveLocalConfig({
+      SHEET_URL: document.getElementById('cSheet').value.trim(),
+      SHEET_SECRET: document.getElementById('cSheetSecret').value.trim(),
+      WORKER_URL: document.getElementById('cWorker').value.trim(),
+      WORKER_SECRET: document.getElementById('cWorkerSecret').value.trim()
+    });
+    Onyx.msg('cMsg', 'Saved to this browser.', 'good');
+  });
+
+  document.getElementById('testConn').addEventListener('click', function () {
+    Onyx.msg('cMsg', 'Testing...');
+    Promise.all([Onyx.sheet('ping', {}), Onyx.worker('ping', {})]).then(function (res) {
+      var a = res[0].ok ? 'Sheet OK (' + res[0].leads + ' leads)' : 'Sheet: ' + res[0].error;
+      var b = res[1].ok ? 'Worker OK' : 'Worker: ' + res[1].error;
+      Onyx.msg('cMsg', a + ' · ' + b, res[0].ok && res[1].ok ? 'good' : 'bad');
+    });
+  });
+
+  document.getElementById('saveFoot').addEventListener('click', function () {
+    Onyx.saveLocalConfig({
+      POSTAL_ADDRESS: document.getElementById('cAddr').value.trim(),
+      UNSUBSCRIBE_LINE: document.getElementById('cUnsub').value.trim()
+    });
+    Onyx.msg('fMsg', 'Saved.', 'good');
+  });
+
+  document.getElementById('changePw').addEventListener('click', function () {
+    Onyx.sheet('setPassword', { password: document.getElementById('pw').value }).then(function (r) {
+      Onyx.msg('pMsg', r.ok ? 'Password changed.' : r.error, r.ok ? 'good' : 'bad');
+      if (r.ok) document.getElementById('pw').value = '';
+    });
+  });
+});
+</script>
+</body>
+</html>

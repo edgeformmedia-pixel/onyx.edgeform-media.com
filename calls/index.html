@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Call list · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div id="chrome"></div>
+<div class="wrap">
+  <div class="page-head">
+    <div><h1>Call list</h1><p class="hint" id="sub">Due callbacks first, then best score.</p></div>
+    <div class="actions" style="margin:0">
+      <label class="chk"><input type="checkbox" id="mine"> Only mine</label>
+      <button class="btn quiet compact" id="rebuild">Rebuild queue</button>
+    </div>
+  </div>
+
+  <div class="callsplit">
+    <ul class="queue" id="queue"></ul>
+    <section class="callcard" id="card">
+      <p class="empty">Pick someone from the queue to start dialing.</p>
+    </section>
+  </div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script>
+Onyx.requireAuth(function () {
+  var queue = [], current = null;
+  var OUTCOMES = [
+    { label: 'Interested', stage: 'Interested', cls: 'ok' },
+    { label: 'Not now', stage: 'Contacted', cls: 'quiet' },
+    { label: 'Not interested', stage: 'Lost', cls: 'danger' },
+    { label: 'Left voicemail', stage: '', cls: 'quiet' },
+    { label: 'No answer', stage: '', cls: 'quiet' },
+    { label: 'Gatekeeper', stage: '', cls: 'quiet' },
+    { label: 'Wrong number', stage: 'Do Not Contact', cls: 'danger' }
+  ];
+
+  load();
+  document.getElementById('rebuild').addEventListener('click', load);
+  document.getElementById('mine').addEventListener('change', load);
+
+  function load() {
+    document.getElementById('queue').innerHTML = '<li class="muted" style="padding:14px">Loading...</li>';
+    Onyx.sheet('callQueue', { mine: document.getElementById('mine').checked, size: 60 }).then(function (r) {
+      if (!r.ok) {
+        document.getElementById('queue').innerHTML = '<li class="muted" style="padding:14px">' + Onyx.esc(r.error) + '</li>';
+        return;
+      }
+      queue = r.queue;
+      document.getElementById('sub').textContent = r.total + ' callable leads · due callbacks first';
+
+      if (!queue.length) {
+        document.getElementById('queue').innerHTML =
+          '<li class="muted" style="padding:16px">Nobody left to call. Nice.</li>';
+        return;
+      }
+
+      document.getElementById('queue').innerHTML = queue.map(function (l, i) {
+        return '<li data-i="' + i + '"><div class="qn">' + Onyx.esc(l.name) + '</div>' +
+          '<div class="qm">' + Onyx.esc(l.city || '') + ' · ' + Onyx.esc(l.phone || 'no phone') +
+          (l.nextActionDate ? ' · <b>due ' + Onyx.shortDate(l.nextActionDate) + '</b>' : '') +
+          ' · score ' + (l.leadScore || '-') + '</div></li>';
+      }).join('');
+    });
+  }
+
+  document.getElementById('queue').addEventListener('click', function (e) {
+    var li = e.target.closest('li[data-i]');
+    if (!li) return;
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.remove('on'); });
+    li.classList.add('on');
+    show(queue[Number(li.dataset.i)]);
+  });
+
+  function show(l) {
+    current = l;
+    document.getElementById('card').innerHTML =
+      '<h2 style="font-size:19px">' + Onyx.esc(l.name) + '</h2>' +
+      '<p class="hint">' + Onyx.esc([l.category, l.city, l.buyerType].filter(Boolean).join(' · ')) + '</p>' +
+      '<p class="bignum"><a href="tel:' + Onyx.esc(String(l.phone || '').replace(/\D/g, '')) + '">' +
+        Onyx.esc(l.phone || 'No phone') + '</a></p>' +
+      '<p class="hint">' + (l.dmName
+        ? 'Ask for <b>' + Onyx.esc(l.dmName) + '</b>' + (l.dmTitle ? ' (' + Onyx.esc(l.dmTitle) + ')' : '')
+        : 'Decision maker unknown — ask who handles equipment purchases.') + '</p>' +
+      (l.callAttempts ? '<p class="hint">' + l.callAttempts + ' previous attempts' +
+        (l.callOutcome ? ', last: ' + Onyx.esc(l.callOutcome) : '') + '</p>' : '') +
+      '<div class="outcomes">' + OUTCOMES.map(function (o) {
+        return '<button class="btn ' + o.cls + ' compact out" data-o="' + Onyx.esc(o.label) +
+          '" data-s="' + Onyx.esc(o.stage) + '">' + Onyx.esc(o.label) + '</button>';
+      }).join('') + '</div>' +
+      '<textarea id="note" rows="3" placeholder="What did they say?"></textarea>' +
+      '<div class="actions">' +
+        '<label class="chk">Call back <input type="date" id="cb" style="width:auto"></label>' +
+        '<a class="btn quiet compact" href="/lead/?id=' + encodeURIComponent(l.id) + '">Open full record</a>' +
+      '</div><p class="msg" id="cmsg"></p>';
+
+    Array.prototype.forEach.call(document.querySelectorAll('.out'), function (b) {
+      b.addEventListener('click', function () { save(l, b.dataset.o, b.dataset.s); });
+    });
+  }
+
+  function save(l, outcome, stage) {
+    Onyx.msg('cmsg', 'Saving...');
+    Onyx.sheet('logCall', {
+      id: l.id, outcome: outcome, stage: stage,
+      note: document.getElementById('note').value.trim(),
+      nextActionDate: document.getElementById('cb').value
+    }).then(function (r) {
+      if (!r.ok) { Onyx.msg('cmsg', r.error, 'bad'); return; }
+      Onyx.msg('cmsg', 'Logged.', 'good');
+      setTimeout(load, 500);
+    });
+  }
+});
+</script>
+</body>
+</html>
