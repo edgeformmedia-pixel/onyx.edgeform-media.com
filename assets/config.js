@@ -4,9 +4,9 @@
 
 window.ONYX_CONFIG = {
   SHEET_URL: 'https://script.google.com/macros/s/AKfycbxok8UBe7P6VSKiOkTekAMIQgToGi5EEC66jxJmUUA90eYbIN3Qgi4UOiNKNkdNBF2Vbw/exec',
-  SHEET_SECRET: 'change-me-to-a-long-random-string',                 // must match CONFIG.SHARED_SECRET in Code.gs
+  SHEET_SECRET: 'test',                 // must match CONFIG.SHARED_SECRET in Code.gs
   WORKER_URL: 'https://email.edgeformmedia.workers.dev/',
-  WORKER_SECRET: 'lasdgfiaugoiajbvfouahoeghaoieroayegvieuabeorgeaivrboauvbaoe8yrgboqevbeh',                // must match ONYX_SECRET in the Worker
+  WORKER_SECRET: 'test',                // must match ONYX_SECRET in the Worker
   SEND_DOMAIN: 'edgeform-media.com',
   FROM_OPTIONS: ['email', 'sales', 'info'],
   POSTAL_ADDRESS: '',
