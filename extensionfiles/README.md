@@ -1,4 +1,4 @@
-# ONYX LeadHunter v4
+# ONYX LeadHunter v4.1
 
 This Chrome extension collects Google Maps businesses one at a time and saves
 each completed lead to ONYX before opening the next result.
@@ -16,10 +16,14 @@ each completed lead to ONYX before opening the next result.
 ## Collection behavior
 
 - Accepts only real `/maps/place/` result cards inside the Maps results feed.
+- Discovers and opens one visible card at a time; it no longer races through
+  the results list collecting names before opening the business panels.
 - Opens and name-verifies every business before reading it.
 - Waits up to 15 seconds for a late phone number instead of abandoning the
   detail panel after roughly 1.8 seconds.
 - Slowly scrolls the detail pane so lazy detail rows are rendered.
+- Keeps each business panel open for at least eight seconds and waits for its
+  rating/review count before saving.
 - Saves each accepted lead locally and to ONYX immediately, before advancing.
 - Continues to deduplicate leads and apply the selected phone, chain, rating,
   and laser-context filters.

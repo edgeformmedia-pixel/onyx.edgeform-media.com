@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "ONYX LeadHunter v4 \u2014 Complete Maps Leads",
-  "version": "4.0",
+  "name": "ONYX LeadHunter v4.1 \u2014 Complete Maps Leads",
+  "version": "4.1",
   "description": "Opens Google Maps results one at a time, waits for complete details including late phone numbers, and saves each lead to ONYX.",
   "permissions": [
     "downloads",

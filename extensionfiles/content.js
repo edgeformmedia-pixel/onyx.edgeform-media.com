@@ -31,6 +31,8 @@
   const PHONE_RX = /(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
   const CARD_SELECTOR='a.hfpxzc[href*="/maps/place/"]';
   const DETAIL_TIMEOUT_MS=15000;
+  const MIN_LEAD_DWELL_MS=8000;
+  const RESULT_SCROLL_PAUSE_MS=900;
   const DETAIL_COOLDOWN_MS=700;
 
   let PANEL, STATUS_EL, META_EL, FILL_EL, TRACK_EL, START_BTN, STOP_BTN, SCAN_BTN, PROBE_BTN;
@@ -351,6 +353,15 @@
     return rows;
   }
 
+  function hasReviewDetails(expectedName) {
+    const panel=detailPanel(expectedName);
+    const nice=panel.querySelector('div.F7nice');
+    if(nice && /[0-5](?:\.\d)?.*?[\d,.]+/s.test(txt(nice))) return true;
+    const rating=[...panel.querySelectorAll('[aria-label]')].some(x=>/\b[0-5](?:\.\d)?\s+stars?\b/i.test(x.getAttribute('aria-label')||''));
+    const reviews=[...panel.querySelectorAll('[aria-label]')].some(x=>/[\d,.KkMm]+\s+reviews?/i.test(x.getAttribute('aria-label')||''));
+    return rating && reviews;
+  }
+
   function findAnchor(place) {
     const nodes=currentCardNodes();
     const byKey=nodes.find(a=>placeKey(a.href||a.getAttribute('href')||'')===place.key);
@@ -438,6 +449,7 @@
   async function openAndParse(place, ctx, gen, settings) {
     const expected=cleanCardName(place.name);
     const requirePhone=settings ? settings.requirePhone!==false : true;
+    let openedAt=Date.now();
 
     // If Maps already has this exact place open, scrape immediately.
     if(nameMatches(detailName(),expected)){
@@ -445,6 +457,9 @@
       await hydrateDetail(expected,gen);
       if(requirePhone && !ready.phone) ready=await waitForDetail(expected,12000,true);
       else await sleep(700);
+      await waitFor(()=>hasReviewDetails(expected),4000,120);
+      const remaining=MIN_LEAD_DWELL_MS-(Date.now()-openedAt);
+      if(remaining>0) await sleep(remaining);
       if(!await liveRun(gen)) return null;
       return parseDetail(expected,ctx,place.href,readCoreFields(expected));
     }
@@ -456,6 +471,7 @@
       if(!a) continue;
       a.scrollIntoView({block:'center',inline:'nearest'});
       await sleep(120);
+      openedAt=Date.now();
       a.click();
       heading=await waitFor(()=>nameMatches(detailName(),expected) ? detailName() : null,7500,100);
       if(!heading) await sleep(250);
@@ -469,6 +485,9 @@
     await hydrateDetail(expected,gen);
     if(requirePhone && !ready.phone) ready=await waitForDetail(expected,12000,true);
     else await sleep(700);
+    await waitFor(()=>hasReviewDetails(expected),4000,120);
+    const remaining=MIN_LEAD_DWELL_MS-(Date.now()-openedAt);
+    if(remaining>0) await sleep(remaining);
     if(!await liveRun(gen)) return null;
     const rec=parseDetail(expected,ctx,place.href,readCoreFields(expected));
     await sleep(DETAIL_COOLDOWN_MS);
@@ -509,23 +528,50 @@
   }
 
   async function scrapeMapsQuery(ctx, target, s, gen) {
-    status(`Collecting up to ${target} Maps businesses for “${ctx.term}” — ${ctx.city}…`);
-    const places=await collectPlaces(target,gen);
-    if(!places.length) return [];
-    status(`Found ${places.length} businesses — opening every lead and collecting all details…`,'ok');
+    status(`Waiting for the first Maps result for “${ctx.term}” — ${ctx.city}…`);
+    const feed=await waitFor(()=>feedEl(),10000,100);
+    if(!feed) return [];
 
-    const rows=[];
-    for(let i=0;i<places.length;i++){
+    feed.scrollTop=0;
+    feed.dispatchEvent(new Event('scroll',{bubbles:true}));
+    await sleep(RESULT_SCROLL_PAUSE_MS);
+
+    const discovered=new Map(), rows=[];
+    let cursor=0, processed=0, noNewRounds=0;
+    captureVisible(discovered);
+
+    while(processed<target){
       if(!await liveRun(gen)) break;
-      status(`Complete lead ${i+1}/${places.length}: ${places[i].name || 'business'}…`);
-      const rec=await openAndParse(places[i],ctx,gen,s);
-      if(rec){
-        rows.push(rec);
-        const saved=await saveCompletedLead(rec,s);
-        status(saved.saved
-          ? `Saved ${i+1}/${places.length}: ${rec.name}${saved.synced?' · '+saved.synced:''}`
-          : `Collected ${i+1}/${places.length}: ${rec.name} · not saved (${saved.reason})`, saved.saved&&!saved.needsSync?'ok':'warn');
+      const places=[...discovered.values()];
+
+      if(cursor<places.length){
+        const place=places[cursor++];
+        processed++;
+        status(`Opening card ${processed}/${target}: ${place.name || 'business'}…`);
+        const rec=await openAndParse(place,ctx,gen,s);
+        if(rec){
+          rows.push(rec);
+          const saved=await saveCompletedLead(rec,s);
+          status(saved.saved
+            ? `Saved card ${processed}: ${rec.name}${saved.synced?' · '+saved.synced:''}`
+            : `Finished card ${processed}: ${rec.name} · not saved (${saved.reason})`, saved.saved&&!saved.needsSync?'ok':'warn');
+          await sleep(DETAIL_COOLDOWN_MS);
+        }
+        continue;
       }
+
+      if(feedEnded(feed)) break;
+      const before=discovered.size;
+      const maxTop=Math.max(0,feed.scrollHeight-feed.clientHeight);
+      const nextTop=Math.min(maxTop,feed.scrollTop+Math.max(420,Math.round(feed.clientHeight*0.72)));
+      if(nextTop<=feed.scrollTop+2 && feed.scrollTop>=maxTop-5) noNewRounds++;
+      else feed.scrollTop=nextTop;
+      feed.dispatchEvent(new Event('scroll',{bubbles:true}));
+      status(`Loaded ${discovered.size} cards · moving to the next result…`);
+      await sleep(RESULT_SCROLL_PAUSE_MS);
+      captureVisible(discovered);
+      if(discovered.size===before) noNewRounds++; else noNewRounds=0;
+      if(noNewRounds>=5) break;
     }
     return rows;
   }
