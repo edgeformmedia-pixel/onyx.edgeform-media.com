@@ -24,7 +24,7 @@ const DAILY_CAP = 400;
 // Sales-fit crawling runs inside a Worker request. Keep the synchronous HTML
 // parsing budget deliberately small so a large marketing site cannot exhaust
 // the Worker CPU allowance before the model call starts.
-const MAX_SITE_PAGES = 3;
+const MAX_SITE_PAGES = 5;
 const MAX_HTML_CHARS_PER_PAGE = 180000;
 const MAX_CRAWL_TEXT_CHARS_PER_PAGE = 3500;
 const SITE_FETCH_TIMEOUT_MS = 5500;
@@ -700,32 +700,33 @@ async function resolveOwnerCore(body, env, lead, crawl) {
 
 /* ── SMART email waterfall ───────────────────────────────────── */
 
-const EMAIL_BASE = `You are the ONYX B2B external contact-data investigator. Find legitimate PUBLISHED business/professional emails AND useful business/professional phone numbers for the target company and verified decision maker.
+const EMAIL_BASE = `You are the ONYX B2B public contact-data investigator. Find every legitimate PUBLISHED business/professional email AND useful business/professional phone number for the target company and verified decision maker.
 
 NON-NEGOTIABLE SOURCE POLICY:
-- DO NOT use the target company's own website for this contact pass. Do not cite it and do not simply return the generic contact information from its Contact page.
+- The target company's public website is an allowed source for published BUSINESS contact information. Include all distinct emails and business phone numbers found there, including generic inboxes and alternate lines.
+- Never treat the company website as proof of ownership; ownership must remain supported by Sunbiz, another official record, or independent corroboration.
 - Prioritize external authoritative/independent sources: state corporation/LLC filings and annual reports, BBB, state professional licensing boards, NPI/NPPES/provider records, AllBiz, Chamber/credible business directories, local licensing records, professional associations, publications/conference bios, press/interviews, and exact phone/address reverse-business results.
 - Exact-match directory pages are valuable because they can expose principals, alternate phones, historical emails, social profiles, filing numbers, and employee names that the company site omits.
 
 RULES:
 - Use the single allowed web-search call strategically. Do NOT query every possible site.
 - Never fabricate an email or phone number.
-- EMAIL GOAL: find at least one NON-GENERIC named/professional email when publicly available.
-- PHONE GOAL: find at least one additional published phone beyond the lead's known business number when publicly available.
+- EMAIL GOAL: collect every distinct published business/professional email, including generic inboxes. Prefer a named/professional email as the CRM primary when one is available.
+- PHONE GOAL: collect every distinct current published business/professional phone number, including alternate business lines.
 - Prefer direct owner/executive professional email, then named employee/manager/provider email, then other non-generic business email. Generic inboxes are fallback only.
 - Preserve owner-direct/employee-direct vs business-primary/business-alternate. Never label a general line as a person's direct number.
 - Search the exact business identity using legal/entity name, decision-maker name, exact current phone, exact street/suite, city/state, and domain.
 - For Florida leads, specifically favor Sunbiz/entity filings plus BBB and exact-match directories. For other states, favor the official Secretary of State / corporation-and-LLC registry plus BBB.
 - If an exact-match AllBiz/BBB/Chamber page exposes multiple Phone fields, return EVERY distinct current business/professional number shown.
 - Historical numbers/emails may be returned only when clearly labeled historical.
-- Generic addresses such as info@, contact@, hello@, office@, admin@, support@, sales@, booking@, appointments@, reception@, frontdesk@, team@, care@, inquiries@, marketing@, privacy@, legal@, careers@ and jobs@ DO NOT satisfy the non-generic email goal.
+- Generic addresses such as info@, contact@, hello@, office@, admin@, support@, sales@, booking@, appointments@, reception@, frontdesk@, team@, care@, inquiries@, marketing@, privacy@, legal@, careers@ and jobs@ are valuable business contacts and must be returned when publicly published.
 - Personal/free-mail addresses or personal phones are allowed only when a professional/business/government source publicly lists them for that person's professional role.
 - Do not harvest unrelated private household contact data from people-search sites.
 - Pattern email guesses may only be returned as type pattern-derived, confidence LOW, status exactly "Pattern-derived — unverified".
-- Return all useful distinct emails and phones with source URL/evidence, but keep output concise.`;
+- Return all useful distinct emails and phones with source URL/evidence, up to 30 of each.`;
 
-const EMAIL_PRIMARY_SYSTEM = EMAIL_BASE + `\n\nEXTERNAL CONTACT PASS. Solve BOTH goals from independent sources. Search state corporation/LLC records, BBB, AllBiz/Chamber/credible directories, licensing/NPI/provider records, and exact phone/address matches. If an exact directory page matches the target, inspect all contact fields, principal/contact names, alternate Phone entries, emails, filing numbers, and social/professional links. DO NOT use the company website.`;
-const EMAIL_FALLBACK_SYSTEM = EMAIL_BASE + `\n\nEXTERNAL CONTACT ESCALATION. Earlier research is still missing a non-generic email and/or useful alternate/direct phone. Spend this final search ONLY on the missing field(s), using external records: owner/staff + professional licensing/publications, BBB/directories, exact phone/address, state filings, and professional profiles. DO NOT use the company website and do not waste this pass rediscovering the primary business contact.`;
+const EMAIL_PRIMARY_SYSTEM = EMAIL_BASE + `\n\nPUBLIC CONTACT PASS. The caller has already crawled the company website. Add missing emails and alternate business phones from independent sources: state corporation/LLC records, BBB, AllBiz/Chamber/credible directories, licensing/NPI/provider records, and exact phone/address matches. If an exact directory page matches the target, inspect all contact fields, principal/contact names, alternate Phone entries, emails, filing numbers, and social/professional links.`;
+const EMAIL_FALLBACK_SYSTEM = EMAIL_BASE + `\n\nPUBLIC CONTACT ESCALATION. Earlier research is still missing a published email and/or useful alternate/direct business phone. Spend this final search ONLY on the missing field(s), using external records: owner/staff + professional licensing/publications, BBB/directories, exact phone/address, state filings, and professional profiles. Do not waste this pass rediscovering a contact already found.`;
 
 function emailSearchPrompt(lead, crawl, owner, existingEmails, existingPhones, prior) {
   const domain = companyDomain(lead);
@@ -767,7 +768,7 @@ function mergePhoneCandidates(...lists) {
     if (!old || phoneCandidateScore(normalized) > phoneCandidateScore(old)) map.set(key, normalized);
     else if (old && !old.sourceUrl && normalized.sourceUrl) old.sourceUrl = normalized.sourceUrl;
   }
-  return [...map.values()].sort((a,b) => phoneCandidateScore(b) - phoneCandidateScore(a)).slice(0, 16);
+  return [...map.values()].sort((a,b) => phoneCandidateScore(b) - phoneCandidateScore(a)).slice(0, 30);
 }
 
 function sitePhoneCandidates(crawl, lead, owner) {
@@ -798,18 +799,15 @@ function hasAlternatePublishedPhone(candidates, lead, owner) {
 
 async function resolveEmailsCore(body, env, lead, crawl, owner) {
   let webPasses = 0;
-  // v5.3: owner/contact research intentionally ignores company-site contact data.
-  // Start only from externally researched records so generic website defaults cannot satisfy the contact stage.
-  let emailCandidates = [];
-  let phoneCandidates = [];
+  // Start with every public contact published on the company's site, then use
+  // external searches to find additional emails and alternate business lines.
+  const siteCrawl = crawl && Array.isArray(crawl.pages) && (crawl.pages.length || crawl.root)
+    ? crawl : await getCrawl(lead, owner);
+  let emailCandidates = mergeEmailCandidates(siteCandidates(siteCrawl, lead, owner));
+  let phoneCandidates = mergePhoneCandidates(sitePhoneCandidates(siteCrawl, lead, owner));
 
   let emailDone = hasPreferredPublishedEmail(emailCandidates);
   let phoneDone = hasAlternatePublishedPhone(phoneCandidates, lead, owner);
-
-  // We only skip web research when BOTH contact goals are already satisfied for free by first-party pages.
-  if (emailDone && phoneDone) {
-    return { candidates: emailCandidates, phoneCandidates, webPasses, reports: [], stoppedEarly: true };
-  }
 
   let primary = null;
   try {
@@ -825,12 +823,6 @@ async function resolveEmailsCore(body, env, lead, crawl, owner) {
   phoneDone = hasAlternatePublishedPhone(phoneCandidates, lead, owner);
   if (emailDone && phoneDone) {
     return { candidates: emailCandidates, phoneCandidates, webPasses, reports: primary ? [primary] : [], stoppedEarly: true };
-  }
-
-  // Cost guard: once email is solved, do not spend a SECOND web pass just to chase an alternate number.
-  // The primary contact pass already reverse-searched the known phone/address.
-  if (emailDone && !phoneDone) {
-    return { candidates: emailCandidates, phoneCandidates, webPasses, reports: primary ? [primary] : [], stoppedEarly: false, phoneBudgetLimited: true };
   }
 
   let fallback = null;
@@ -924,7 +916,7 @@ function mergeEmailCandidates(...lists) {
     if (!old || score > oldScore) map.set(key, Object.assign({}, c, { email: key }));
     else if (old && !old.sourceUrl && c.sourceUrl) old.sourceUrl = c.sourceUrl;
   }
-  return [...map.values()].sort((a, b) => emailCandidateScore(b) - emailCandidateScore(a)).slice(0, 16);
+  return [...map.values()].sort((a, b) => emailCandidateScore(b) - emailCandidateScore(a)).slice(0, 30);
 }
 
 function mergeOwnerCandidates(...lists) {
@@ -1012,8 +1004,9 @@ async function enrichEmailsStage(body, env) {
   const owner = body.owner || {};
   if (!lead.name) return { ok: false, error: 'Lead needs at least a business name.' };
   const started = Date.now();
-  // External-contact stage: intentionally do not fetch the target company website.
-  const crawl = { root: '', pages: [], emails: [], emailSources: {}, phones: [], phoneSources: {} };
+  // Start with the company's published business contact details, then enrich
+  // with independent public sources for owner-facing and alternate contacts.
+  const crawl = await getCrawl(lead, owner);
   const resolved = await resolveEmailsCore(body, env, lead, crawl, owner);
   const candidates = resolved.candidates || [];
   const phoneCandidates = resolved.phoneCandidates || [];
@@ -1021,9 +1014,9 @@ async function enrichEmailsStage(body, env) {
   const best = candidates.find(c => c.type !== 'pattern-derived' && !isGenericEmailAddress(c.email) && ['VERIFIED','HIGH','MEDIUM'].includes(c.confidence)) || candidates[0] || null;
   const reports = resolved.reports || [];
   const attempts = uniq([
-    'Company website intentionally skipped for contact discovery',
+    'Company website crawled for published business emails and phone numbers',
     ...reports.flatMap(r => r.researchAttempts || []),
-    resolved.stoppedEarly ? 'Smart waterfall stopped once both a non-generic email and an alternate published phone were found.' : (resolved.phoneBudgetLimited ? 'Phone deepening used one targeted pass; no second phone-only pass was spent after email was solved.' : 'Final contact pass used because the non-generic email was still missing; it also continued looking for an alternate phone.')
+    resolved.stoppedEarly ? 'Smart waterfall stopped once published email and alternate-phone goals were met.' : 'Final contact pass used to complete missing published emails or alternate business numbers.'
   ]);
   const urls = uniq([...candidates.map(c => c.sourceUrl).filter(Boolean), ...phoneCandidates.map(c => c.sourceUrl).filter(Boolean)]).slice(0, 30);
   const weak = !best || best.type === 'pattern-derived' || best.confidence === 'LOW';
@@ -1038,7 +1031,7 @@ async function enrichEmailsStage(body, env) {
       emailCandidates: candidates,
       phoneCandidates: phoneCandidates,
       researchAttempts: attempts,
-      researchSummary: `REGISTRY-FIRST CONTACTS: ${candidates.length} email candidate(s); ${phoneCandidates.length} phone candidate(s); ${resolved.webPasses} external-record web-search pass(es); company website skipped; ${resolved.stoppedEarly ? 'contact goals satisfied' : (resolved.phoneBudgetLimited ? 'phone deepening capped at one targeted pass' : 'budgeted external fallback completed')}; ${Date.now() - started} ms.`,
+      researchSummary: `PUBLIC CONTACT ENRICHMENT: ${candidates.length} email candidate(s); ${phoneCandidates.length} phone candidate(s); ${resolved.webPasses} external-record web-search pass(es); company website scanned; ${resolved.stoppedEarly ? 'contact goals satisfied' : 'public-source fallback completed'}; ${Date.now() - started} ms.`,
       sources: urls.join('\n'),
       bestChannel: best ? 'Email' : (owner.directPhone || lead.phone ? 'Phone' : (owner.linkedin ? 'LinkedIn' : 'Unknown')),
       needsHumanReview: weak,
