@@ -41,7 +41,8 @@
     maxRevisions: 60,
     maxRevisionBytes: 600000,
     maxMutations: 5000,
-    maxRegexHits: 60
+    maxRegexHits: 60,
+    maxInfoRows: 180
   };
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -248,6 +249,59 @@
     return out;
   }
 
+  function parseCount(value) {
+    const match = String(value || '').replace(/,/g, '').match(/([\d.]+)\s*([KM]?)/i);
+    if (!match) return 0;
+    const multiplier = match[2].toLowerCase() === 'k' ? 1000 : match[2].toLowerCase() === 'm' ? 1000000 : 1;
+    return Math.round(Number(match[1]) * multiplier) || 0;
+  }
+
+  function cleanValue(el, prefix) {
+    const raw = attrText(el);
+    return prefix ? raw.replace(prefix, '').trim() : raw;
+  }
+
+  // A normalized one-lead record is convenient for GPT, while allInfoRows and
+  // the DOM timeline preserve every raw clue needed to challenge the parsing.
+  function extractCompleteLead(expectedName) {
+    const pane = detailPane();
+    const region = infoRegion(expectedName);
+    const root = region || pane || document;
+    const allStrategies = strategies(expectedName);
+    const byId = Object.fromEntries(allStrategies.map(strategy => [strategy.id, strategy]));
+    const phoneStrategy = ['p1', 'p3', 'p2', 'p4', 'p5', 'p6', 'p7', 'p8'].map(id => byId[id]).find(strategy => strategy && strategy.value);
+    const addressEl = root.querySelector('button[data-item-id="address"],button[aria-label^="Address:"]') || document.querySelector('button[data-item-id="address"],button[aria-label^="Address:"]');
+    const websiteEl = root.querySelector('a[data-item-id="authority"][href],a[aria-label^="Website:"][href]') || document.querySelector('a[data-item-id="authority"][href],a[aria-label^="Website:"][href]');
+    const categoryEl = pane.querySelector('button.DkEaL') || pane.querySelector('button[jsaction*="category" i]');
+    const ratingEl = pane.querySelector('div.F7nice') || [...pane.querySelectorAll('[aria-label]')].find(el => /\bstars?\b/i.test(el.getAttribute('aria-label') || ''));
+    const ratingText = [txt(ratingEl), ratingEl && ratingEl.getAttribute('aria-label')].filter(Boolean).join(' ');
+    const ratingMatch = ratingText.match(/([0-5](?:\.\d)?)/);
+    const reviewsMatch = ratingText.match(/([\d,.]+\s*[KM]?)\s+reviews?/i);
+    const plusCodeEl = root.querySelector('[data-item-id*="oloc" i],[aria-label^="Plus code:" i]');
+    const coords = location.href.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    const allInfoRows = [...pane.querySelectorAll('[data-item-id],button[aria-label],a[aria-label],[data-tooltip]')]
+      .slice(0, CFG.maxInfoRows)
+      .map((el, order) => ({ order, ...info(el, 5000) }));
+
+    return {
+      name: detailName() || expectedName || '',
+      category: txt(categoryEl),
+      phone: phoneStrategy ? phoneStrategy.value : '',
+      phoneFoundBy: phoneStrategy ? phoneStrategy.id : '',
+      address: cleanValue(addressEl, /^Address:\s*/i),
+      website: websiteEl ? (websiteEl.href || websiteEl.getAttribute('href') || '') : '',
+      rating: ratingMatch ? Number(ratingMatch[1]) : null,
+      reviewCount: reviewsMatch ? parseCount(reviewsMatch[1]) : 0,
+      openStatus: txt(pane.querySelector('span.ZDu9vd')),
+      plusCode: cleanValue(plusCodeEl, /^Plus code:\s*/i),
+      coordinates: coords ? { latitude: Number(coords[1]), longitude: Number(coords[2]) } : null,
+      mapsUrl: location.href,
+      capturedAt: new Date().toISOString(),
+      allInfoRows,
+      extractionStrategies: allStrategies
+    };
+  }
+
   function snapshotState(expectedName) {
     const region = infoRegion(expectedName);
     const pane = detailPane();
@@ -270,7 +324,7 @@
   // ── report assembly ──────────────────────────────────────────
   const report = {
     probe: 'scraper-probe',
-    version: '1.0',
+    version: '1.1',
     createdAt: '',
     url: '',
     title: '',
@@ -283,6 +337,7 @@
     mutations: [],
     fullBodyBefore: '',
     fullBodyAfter: '',
+    lead: null,
     verdict: null,
     config: CFG
   };
@@ -477,6 +532,10 @@
   <div style="margin-top:8px" class="muted">first sighting per strategy: ${esc(JSON.stringify(v.firstSeenMs))}</div>
 </div>
 
+<h2>Complete lead snapshot</h2>
+<p class="muted">Normalized fields first, followed by every labeled/detail row found in DOM order. The timeline below remains the source of truth.</p>
+<pre>${esc(JSON.stringify(r.lead, null, 2))}</pre>
+
 <h2>Target</h2>
 <pre>${esc(JSON.stringify(r.target, null, 2))}</pre>
 
@@ -558,7 +617,8 @@ ${revs}
 
     // 3 — start watching, then click, slowly
     status('Step 3 of 6 — watching the DOM, then clicking the card…');
-    const obs = startMutationLog(document.querySelector('div[role="main"]') || document.body);
+    // Watch body because Maps may replace the entire role=main node after the click.
+    const obs = startMutationLog(document.body);
     try { card.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* non-scrollable context */ }
     await sleep(500);
     t0 = performance.now();          // clock resets so every ms is "since click"
@@ -619,6 +679,7 @@ ${revs}
     report.fullBodyAfter = document.body.outerHTML || '';
     obs.disconnect();
     report.verdict = buildVerdict();
+    report.lead = extractCompleteLead(cardName);
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const slug = (cardName || 'lead').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);

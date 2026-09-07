@@ -39,6 +39,11 @@ Turn LeadHunter off while probing, or its panel and this one will both be on scr
 
 `scraper-probe-<business>-<timestamp>.json` — the same data, for a model to parse.
 
+Both files also include a **Complete lead snapshot**: name, category, phone,
+address, website, rating, review count, open status, plus code, coordinates,
+Maps URL, and every labeled/detail row found in DOM order. The raw timeline
+remains the source of truth if a normalized field is blank or ambiguous.
+
 ## The 13 strategies
 
 | id | field | scope | what it is |
