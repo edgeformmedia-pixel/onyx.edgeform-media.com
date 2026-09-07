@@ -181,3 +181,141 @@ table.grid{width:100%;border-collapse:collapse;font-size:13px}
 .research-list{display:grid;gap:8px}
 .research-item{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px}
 .research-item>.btn{margin-top:7px}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Enterprise visual system — deliberate, compact, and low-decoration.
+   This layer restyles existing screens only; it does not change workflows.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#f5f6f8;
+  --panel:#ffffff;
+  --panel2:#f8fafc;
+  --line:#dfe3e8;
+  --line2:#c6ccd4;
+  --text:#17212b;
+  --dim:#5f6b7a;
+  --accent:#0f6cbd;
+  --accent2:#0b5cab;
+  --ok:#0d7a4c;
+  --warn:#9a6700;
+  --bad:#b4233d;
+  --r:6px;
+}
+body{background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
+a{color:var(--accent2)}
+.hint{color:var(--dim);font-size:12px}
+.muted{color:#7b8794}
+.msg{font-size:12px}
+.tag{background:#edf1f5;color:#435466;border:1px solid #d8e0e8;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:.04em;padding:2px 5px}
+.tag.chain{background:#fff7e6;color:#8a5a00;border-color:#f0d59a}
+.tag.review{background:#fdf0f2;color:#a11f37;border-color:#f0c7ce}
+.tag.ok{background:#ecf8f1;color:#0b6a40;border-color:#b9e2cc}
+
+/* Controls */
+.btn{border-radius:4px;padding:8px 13px;font-size:12.5px;font-weight:600;box-shadow:none;transition:background .12s,border-color .12s,color .12s}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#0b5cab;border-color:#0b5cab}
+.btn.primary:disabled{background:#a7bfda;border-color:#a7bfda;color:#fff}
+.btn.quiet{background:#fff;border-color:var(--line2);color:#273444}
+.btn.quiet:hover{background:#f3f6f8;border-color:#aeb8c2;color:#17212b}
+.btn.danger{background:#fff;border-color:#d8a7b1;color:#aa2941}
+.btn.danger:hover{background:#fdf1f3}
+.btn.ok{background:#fff;border-color:#9bcdb1;color:#0d7048}
+.btn.ok:hover{background:#eff9f3}
+.btn.compact{padding:5px 9px;font-size:12px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #6aa6df;outline-offset:1px}
+.link{color:var(--accent2);font-size:12px}
+input,select,textarea{background:#fff;border-color:var(--line2);border-radius:4px;padding:8px 10px;color:var(--text);box-shadow:inset 0 1px 1px rgba(16,24,40,.025)}
+input:hover,select:hover,textarea:hover{border-color:#aab4bf}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+input::placeholder,textarea::placeholder{color:#8a97a5}
+label.chk{color:#4b5a6a;font-size:12px}
+
+/* Application frame */
+.top{min-height:52px;padding:0 28px;gap:24px;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 1px 2px rgba(16,24,40,.04);backdrop-filter:none}
+.logo{color:#182b3a;font-size:14px;letter-spacing:.15em;line-height:52px;position:relative}
+.logo:after{content:'CRM';font-size:9px;letter-spacing:.08em;font-weight:700;color:#667789;margin-left:7px;vertical-align:2px}
+.tabs{height:52px;gap:0;align-items:stretch}
+.tab{color:#526170;border-radius:0;padding:16px 13px 13px;font-size:12.5px;font-weight:600;border-bottom:3px solid transparent}
+.tab:hover{color:#17212b;background:#f7f9fb}
+.tab.active{background:#fff;color:#0b5cab;border-bottom-color:var(--accent)}
+.who{color:#526170;font-size:12px;gap:10px}
+.wrap{max-width:1540px;padding:26px 32px 64px}
+.page-head{margin-bottom:20px;align-items:center}
+.page-head h1{font-size:24px;line-height:1.2;font-weight:650;letter-spacing:-.025em;color:#17212b}
+.page-head .hint{margin-top:4px}
+
+/* Summary and containers */
+.stats{gap:12px;margin-bottom:24px}
+.stat{background:#fff;border-color:var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:0 1px 2px rgba(16,24,40,.025)}
+a.stat:hover{border-color:#b8c4d0;box-shadow:0 2px 5px rgba(16,24,40,.06)}
+.stat b{font-size:25px;font-weight:650;color:#17212b}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.045em;color:#6b7886}
+.stat.alert{border-left:3px solid #d29922;padding-left:13px}
+.stat.alert b{color:#8a5a00}
+.panel{border-color:var(--line);border-radius:var(--r);padding:18px;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.025)}
+.panel h2{color:#526170;font-size:10.5px;font-weight:700;letter-spacing:.085em;margin-bottom:15px}
+.panel.slim{padding:14px 16px}
+.cols{gap:18px}
+
+/* Search, grid, and data-heavy views */
+.toolbar{padding:12px;background:#fff;border:1px solid var(--line);border-radius:var(--r);gap:10px;margin-bottom:12px;box-shadow:0 1px 2px rgba(16,24,40,.02)}
+.toolbar input[type=search]{min-height:34px}
+.tablewrap{border-color:var(--line);border-radius:var(--r);box-shadow:0 1px 2px rgba(16,24,40,.025)}
+table.grid{font-size:12.5px}
+.grid th{background:#f7f8fa;color:#5f6b7a;border-bottom:1px solid var(--line);padding:10px 12px;font-size:10px;font-weight:700;letter-spacing:.075em}
+.grid td{padding:11px 12px;border-color:#e8ebee;color:#293745}
+.grid tbody tr.click:hover{background:#f3f8fc}
+.grid.small th,.grid.small td{padding:8px 10px}
+.score{border:1px solid #d7dfe7;background:#f1f4f7;color:#4b5b6b;border-radius:3px;font-size:11px}
+.score.hot{background:#eaf7ef;color:#087443;border-color:#bae1c9}
+.score.warm{background:#fff6e6;color:#8a5a00;border-color:#efd49a}
+.pager{color:#5f6b7a}
+
+/* Call workbench */
+.callsplit{gap:18px}
+.queue{background:#fff;border-color:var(--line);border-radius:var(--r);box-shadow:0 1px 2px rgba(16,24,40,.025)}
+.queue li{padding:12px 14px;border-color:#e7ebef}
+.queue li:hover{background:#f5f8fb}
+.queue li.on{background:#edf5fc;box-shadow:inset 3px 0 0 var(--accent)}
+.queue .qn{color:#22303d;font-weight:650}
+.queue .qm{color:#687787}
+.callcard{background:#fff;border-color:var(--line);border-radius:var(--r);box-shadow:0 1px 2px rgba(16,24,40,.025)}
+.callcard .empty{color:#6b7886}
+.bignum{font-size:28px;font-weight:650}
+.bignum a{color:#17212b}
+
+/* Forms, detail views, research, and admin */
+.composer .row > label,.frow > span,.dgrid .k{color:#5f6b7a;font-size:11.5px;font-weight:600}
+.composer textarea{background:#fff;color:#273444;border-radius:4px}
+.pill{border-color:#d9e1e8;background:#f6f8fa;border-radius:3px;color:#526170}
+.preview{border:1px solid var(--line);border-radius:var(--r);box-shadow:0 1px 3px rgba(16,24,40,.08)}
+.notes{background:#f8fafb;border-color:#e0e6eb;border-radius:4px;color:#334252;font-size:12px}
+.backlink{color:#526170;text-decoration:none}
+.backlink:hover{color:var(--accent2);text-decoration:underline}
+.req{background:#fafbfd;border-color:#e0e6eb;border-radius:4px}
+.req .who2 span{color:#6b7886}
+.empty-state{color:#6b7886}
+.empty-state h3{color:#334252}
+.research-links{gap:0;border:1px solid #e0e6eb;border-radius:4px;background:#fff;overflow:hidden}
+.research-link-row{padding:11px 12px;border-color:#e7ebef;background:#fff}
+.research-link-row:hover{background:#fafcfd}
+.research-subhead{color:#5f6b7a;font-size:10.5px!important;font-weight:700}
+.research-list{gap:7px}
+.research-item{background:#fafbfd;border-color:#e0e6eb;border-radius:4px;padding:11px}
+
+/* Auth keeps the same product language without making it look consumer-like. */
+.auth{background:linear-gradient(135deg,#f3f6f9 0%,#edf2f7 100%)}
+.auth-card{background:#fff;border-color:#dce3ea;border-radius:8px;box-shadow:0 12px 28px rgba(16,24,40,.09)}
+.auth-card .brand{color:#172b3a;font-size:22px}
+.auth-card .sub{color:#687787}
+.auth-foot{border-color:#e3e8ed}
+
+@media(max-width:900px){
+  .top{padding:0 16px;gap:12px}
+  .tabs{overflow-x:auto}
+  .tab{padding-left:10px;padding-right:10px}
+  .wrap{padding:20px 16px 48px}
+  .page-head h1{font-size:21px}
+  .toolbar{padding:10px}
+}

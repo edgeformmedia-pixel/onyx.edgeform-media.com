@@ -1,0 +1,3 @@
+.wrangler/
+.cf-worker-tail.log
+.cf-worker-tail.err.log

@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "email",
+  "main": "index.js",
+  "compatibility_date": "2026-04-05",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
