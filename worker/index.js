@@ -373,12 +373,14 @@ const businessSchema = {
   type: 'object', additionalProperties: false,
   properties: {
     services: { type: 'string' }, existingEquipment: { type: 'string' }, expansionSignals: { type: 'string' },
+    reviewOpportunity: { type: 'string' }, reviewFindings: { type: 'string' }, reviewEvidence: { type: 'string' },
+    serviceGap: { type: 'string' }, serviceGapEvidence: { type: 'string' },
     leadScore: { type: 'integer', minimum: 0, maximum: 100 }, buyerFit: { type: 'string' }, scoreReasoning: { type: 'string' },
     salesAngle: { type: 'string' }, angleEvidence: { type: 'string' }, bestChannel: { type: 'string' },
     openingAngle: { type: 'string' }, personalization: { type: 'string' }, suggestedMessage: { type: 'string' },
     sources: { type: 'array', items: { type: 'string' } }, researchAttempts: { type: 'array', items: { type: 'string' } }
   },
-  required: ['services','existingEquipment','expansionSignals','leadScore','buyerFit','scoreReasoning',
+  required: ['services','existingEquipment','expansionSignals','reviewOpportunity','reviewFindings','reviewEvidence','serviceGap','serviceGapEvidence','leadScore','buyerFit','scoreReasoning',
     'salesAngle','angleEvidence','bestChannel','openingAngle','personalization','suggestedMessage','sources','researchAttempts']
 };
 
@@ -387,7 +389,7 @@ function leadFacts(lead) {
     ['Business', lead.name], ['Category', lead.category], ['Website', lead.website], ['Phone', lead.phone],
     ['Address', [lead.street, lead.city, lead.state, lead.zip].filter(Boolean).join(', ')],
     ['Google Maps', lead.mapsUrl], ['National chain', lead.isNationalChain], ['Chain brand', lead.chainBrand],
-    ['Rating', lead.rating && `${lead.rating} (${lead.reviewCount || 0} reviews)`], ['Years in business', lead.yearsInBusiness]
+    ['Rating', lead.rating && `${lead.rating} (${lead.reviewCount || 0} reviews)`], ['Review excerpts captured from Maps', Array.isArray(lead.reviewSnippets) ? lead.reviewSnippets.map(r => `${r.rating || 'unrated'} star: ${r.text || r}`).join(' | ') : lead.reviewSnippets], ['Years in business', lead.yearsInBusiness]
   ].filter(p => p[1]).map(p => `${p[0]}: ${p[1]}`).join('\n');
 }
 
@@ -842,7 +844,14 @@ async function resolveEmailsCore(body, env, lead, crawl, owner) {
 
 const BUSINESS_SYSTEM = `You are the ONYX B2B sales-research analyst for aesthetic laser equipment.
 Use only the supplied lead facts and first-party company crawl unless explicitly told web search is available.
-Return concise, grounded sales intelligence. List all clearly observed relevant services/equipment, semicolon-separated. Never invent a device or service. Score 0-100 for realistic equipment-buying fit and write a short personalized outreach angle.`;
+Return concise, grounded sales intelligence. List all clearly observed relevant services/equipment, semicolon-separated. Never invent a device or service. Score 0-100 for realistic equipment-buying fit and write a short personalized outreach angle.
+
+Also return reputation and service-gap evidence:
+- reviewOpportunity: "Priority" only when a captured public review is rated 1-3 and reports a relevant treatment/device problem; otherwise "None identified". An overall business rating by itself is not a review finding.
+- reviewFindings: use only captured 1-3-star review excerpts that specifically mention laser, laser hair removal, hair removal, waxing/wax, a treatment, or a device/machine problem. Keep the exact relevant excerpt short in quotation marks and name the issue. If no such captured excerpt exists, say "No captured low-rating laser/wax-related review." Never invent or paraphrase a review you did not see.
+- reviewEvidence: identify the supplied Google Maps public-review excerpt and its rating. Do not cite a review that was not supplied.
+- serviceGap: identify a relevant opportunity such as "No published laser hair-removal service observed" only when the supplied crawl/service menu is reasonably complete and lacks it. Otherwise say "No verified service gap." Never state that a service is unavailable.
+- serviceGapEvidence: explain the observed menu/service evidence and use the phrase "not publicly listed" for an omission.`;
 
 const BUSINESS_WEB_SYSTEM = BUSINESS_SYSTEM + `\nThe first-party crawl is sparse, so use the single allowed web-search call to fill only the missing sales-fit facts from credible public sources.`;
 
@@ -1063,7 +1072,9 @@ async function enrichBusinessStage(body, env) {
       stage: 'business',
       data: {
         services: business.services || 'Unknown', existingEquipment: business.existingEquipment || 'Unknown',
-        expansionSignals: business.expansionSignals || 'Unknown', leadScore: business.leadScore || 0,
+        expansionSignals: business.expansionSignals || 'Unknown', reviewOpportunity: business.reviewOpportunity || 'None identified',
+        reviewFindings: business.reviewFindings || 'No specific public review excerpt captured.', reviewEvidence: business.reviewEvidence || '',
+        serviceGap: business.serviceGap || 'No verified service gap.', serviceGapEvidence: business.serviceGapEvidence || '', leadScore: business.leadScore || 0,
         buyerFit: business.buyerFit || '', scoreReasoning: business.scoreReasoning || '', salesAngle: business.salesAngle || '',
         angleEvidence: business.angleEvidence || '', bestChannel: business.bestChannel || '', openingAngle: business.openingAngle || '',
         personalization: business.personalization || '', suggestedMessage: business.suggestedMessage || '',

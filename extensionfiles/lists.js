@@ -82,7 +82,7 @@
     'rating', 'reviewCount', 'yearsInBusiness', 'openStatus', 'hours', 'plusCode', 'locatedIn',
     'description', 'priceLevel', 'bookingUrl', 'menuUrl',
     'latitude', 'longitude', 'googlePlaceId',
-    'mapDetails',
+    'mapDetails', 'reviewSnippets', 'reviewCaptureStatus', 'reviewOpportunity', 'reviewResearchStatus',
     'mapsUrl', 'directionsUrl', 'googleSearchUrl',
     'isNationalChain', 'chainBrand', 'chainType', 'buyerType',
     'searchTerm', 'searchCity', 'page', 'stage', 'notes', 'scrapedAt'

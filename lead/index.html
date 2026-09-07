@@ -388,7 +388,8 @@ Onyx.requireAuth(function () {
         ['Score', l.leadScore + (l.buyerFit ? ' — ' + l.buyerFit : '')],
         ['Why', l.scoreReasoning], ['Sales angle', l.salesAngle], ['Evidence', l.angleEvidence],
         ['Services', l.services], ['Equipment', l.existingEquipment],
-        ['Signals', l.expansionSignals], ['Best channel', l.bestChannel], ['Research summary', l.researchSummary],
+        ['Signals', l.expansionSignals], ['Review opportunity', l.reviewOpportunity], ['Review finding', l.reviewFindings], ['Review evidence', l.reviewEvidence],
+        ['Service gap', l.serviceGap], ['Service-gap evidence', l.serviceGapEvidence], ['Best channel', l.bestChannel], ['Research summary', l.researchSummary],
         ['Attempts', (function () { var a = parseList(l.researchAttempts); return a.length ? a.join(' · ') : l.researchAttempts; })()],
       ].filter(function (p) { return p[1]; })
         .map(function (p) { return '<span class="k">' + p[0] + '</span><span>' + esc(p[1]) + '</span>'; }).join('');
@@ -459,7 +460,8 @@ Onyx.requireAuth(function () {
       ['email', 'email'], ['emailStatus', 'emailStatus'], ['emailConfidence', 'emailConfidence'],
       ['directPhone', 'directPhone'], ['linkedin', 'linkedin'], ['instagram', 'instagram'],
       ['facebook', 'facebook'], ['services', 'services'], ['existingEquipment', 'existingEquipment'],
-      ['expansionSignals', 'expansionSignals'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
+      ['expansionSignals', 'expansionSignals'], ['reviewOpportunity', 'reviewOpportunity'], ['reviewFindings', 'reviewFindings'], ['reviewEvidence', 'reviewEvidence'],
+      ['serviceGap', 'serviceGap'], ['serviceGapEvidence', 'serviceGapEvidence'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
       ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
       ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
       ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],

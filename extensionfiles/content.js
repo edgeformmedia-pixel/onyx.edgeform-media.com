@@ -362,6 +362,42 @@
     return rating && reviews;
   }
 
+  // Maps review cards appear only after the public Reviews view opens. Keep
+  // this intentionally limited to cards Maps has made visible: no scrolling,
+  // sorting, or attempt to work around access controls.
+  function visibleReviewSnippets() {
+    const seen=new Set(), out=[];
+    const cards=[...document.querySelectorAll('.jftiEf,[data-review-id]')];
+    for(const card of cards){
+      const textEl=card.querySelector('.wiI7pd,[data-expandable-section]');
+      const reviewText=txt(textEl);
+      if(reviewText.length<12 || reviewText.length>1400) continue;
+      const starEl=[...card.querySelectorAll('[aria-label]')].find(el=>/\b[0-5](?:\.\d)?\s+stars?\b/i.test(el.getAttribute('aria-label')||''));
+      const match=starEl && (starEl.getAttribute('aria-label')||'').match(/([0-5](?:\.\d)?)\s+stars?/i);
+      const rating=match ? Number(match[1]) : null;
+      const key=[rating||'',reviewText].join('|').toLowerCase();
+      if(seen.has(key)) continue;
+      seen.add(key);
+      out.push({rating,text:reviewText.slice(0,1000),source:'Google Maps public review'});
+      if(out.length>=10) break;
+    }
+    return out;
+  }
+
+  async function collectVisibleReviews(expectedName) {
+    let snippets=visibleReviewSnippets();
+    if(snippets.length) return snippets;
+    const panel=detailPanel(expectedName);
+    const trigger=[...panel.querySelectorAll('button,[role="button"],a')].find(el=>{
+      const label=attrText(el);
+      return /\breviews?\b/i.test(label) && !/write|sort|search|more reviews/i.test(label);
+    });
+    if(!trigger) return [];
+    trigger.click();
+    await waitFor(()=>visibleReviewSnippets().length,3500,100);
+    return visibleReviewSnippets();
+  }
+
   function findAnchor(place) {
     const nodes=currentCardNodes();
     const byKey=nodes.find(a=>placeKey(a.href||a.getAttribute('href')||'')===place.key);
@@ -437,6 +473,7 @@
       bookingUrl:bookingEl?cleanWebsite(bookingEl.href):'', menuUrl:menuEl?cleanWebsite(menuEl.href):'',
       latitude:coordinates?Number(coordinates[1]):'', longitude:coordinates?Number(coordinates[2]):'', googlePlaceId:placeId,
       mapDetails,
+      reviewSnippets:[], reviewCaptureStatus:'No public review excerpts captured.',
       mapsUrl,
       directionsUrl:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(destination),
       googleSearchUrl:'https://www.google.com/search?q='+encodeURIComponent([name,address.city,address.state].filter(Boolean).join(' ')),
@@ -463,7 +500,12 @@
       const remaining=MIN_LEAD_DWELL_MS-(Date.now()-openedAt);
       if(remaining>0) await sleep(remaining);
       if(!await liveRun(gen)) return null;
-      return parseDetail(expected,ctx,place.href,readCoreFields(expected));
+      const rec=parseDetail(expected,ctx,place.href,readCoreFields(expected));
+      if(rec && settings.badReviewMode){
+        rec.reviewSnippets=await collectVisibleReviews(expected);
+        rec.reviewCaptureStatus=rec.reviewSnippets.length ? `Captured ${rec.reviewSnippets.length} visible public Google Maps review excerpt(s).` : 'No visible public Google Maps review excerpts captured.';
+      }
+      return rec;
     }
 
     let heading='';
@@ -492,6 +534,10 @@
     if(remaining>0) await sleep(remaining);
     if(!await liveRun(gen)) return null;
     const rec=parseDetail(expected,ctx,place.href,readCoreFields(expected));
+    if(rec && settings.badReviewMode){
+      rec.reviewSnippets=await collectVisibleReviews(expected);
+      rec.reviewCaptureStatus=rec.reviewSnippets.length ? `Captured ${rec.reviewSnippets.length} visible public Google Maps review excerpt(s).` : 'No visible public Google Maps review excerpts captured.';
+    }
     await sleep(DETAIL_COOLDOWN_MS);
     return rec;
   }

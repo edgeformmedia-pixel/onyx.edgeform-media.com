@@ -1,9 +1,36 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bad Reviewed Locations · ONYX</title><link rel="stylesheet" href="/assets/styles.css"></head>
 <body><div id="chrome"></div><main class="wrap">
-  <div class="page-head"><div><h1>Bad Reviewed Locations</h1><p class="hint" id="sub">Loading locations with 0–2 star public ratings…</p></div></div>
-  <div class="toolbar"><input id="q" type="search" placeholder="Search business or city"><select id="ceiling"><option value="2">0–2 stars</option><option value="1">0–1 star</option><option value="3">0–3 stars</option></select><label class="chk"><input id="laser" type="checkbox" checked> Laser hair removal context only</label><button class="btn quiet compact" id="reload">Refresh</button></div>
-  <div class="tablewrap"><table class="grid"><thead><tr><th>Rating</th><th>Business</th><th>Location</th><th>Reviews</th><th>Why it is here</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
+  <div class="page-head"><div><h1>Bad Reviewed Locations</h1><p class="hint" id="sub">Loading locations and captured public-review evidence…</p></div></div>
+  <div class="toolbar"><input id="q" type="search" placeholder="Search business or city"><select id="ceiling"><option value="1">Up to 1 star</option><option value="2">Up to 2 stars</option><option value="3" selected>Up to 3 stars</option><option value="4">Up to 4 stars</option><option value="5">Up to 5 stars</option></select><select id="topic"><option value="laser" selected>Laser / hair removal</option><option value="wax">Waxing</option><option value="all">Any treatment topic</option></select><button class="btn quiet compact" id="reload">Refresh</button></div>
+  <div class="tablewrap"><table class="grid"><thead><tr><th>Rating</th><th>Business</th><th>Location</th><th>Reviews</th><th>AI-screened evidence</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
 </main><script src="/assets/config.js"></script><script src="/assets/onyx.js"></script><script>
-Onyx.requireAuth(function(){var all=[];function load(){document.getElementById('rows').innerHTML='<tr><td colspan="6" class="muted">Loading…</td></tr>';Onyx.sheet('listLeads',{q:document.getElementById('q').value,size:200}).then(function(r){if(!r.ok){document.getElementById('rows').innerHTML='<tr><td colspan="6" class="muted">'+Onyx.esc(r.error)+'</td></tr>';return;}all=r.leads;render();});}function render(){var max=Number(document.getElementById('ceiling').value),laser=document.getElementById('laser').checked,q=document.getElementById('q').value.toLowerCase();var rows=all.filter(function(l){var rating=Number(l.rating);if(!(rating>=0&&rating<=max))return false;var context=[l.searchTerm,l.category,l.name].join(' ').toLowerCase();return !laser||/laser|hair removal/.test(context);}).filter(function(l){return !q||[l.name,l.city,l.state].join(' ').toLowerCase().includes(q);}).sort(function(a,b){return Number(a.rating)-Number(b.rating)||Number(b.reviewCount)-Number(a.reviewCount);});document.getElementById('sub').textContent=rows.length+' locations, worst public rating first';document.getElementById('rows').innerHTML=rows.length?rows.map(function(l){var why=Number(l.rating)<=1?'Urgent reputation risk':'Low public rating';if(/laser|hair removal/i.test([l.searchTerm,l.category,l.name].join(' ')))why+=' · laser context';return '<tr><td><span class="tag review">★ '+Onyx.esc(l.rating||'0')+'</span></td><td><b>'+Onyx.esc(l.name)+'</b></td><td>'+Onyx.esc([l.city,l.state].filter(Boolean).join(', '))+'</td><td>'+Onyx.esc(l.reviewCount||0)+'</td><td>'+why+'</td><td><a class="btn quiet compact" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([l.name,l.city,l.state].join(' '))+'">Open reviews</a> <a class="btn primary compact" href="/lead/?id='+encodeURIComponent(l.id)+'">Open lead</a></td></tr>';}).join(''):'<tr><td colspan="6"><div class="empty-state"><h3>No matching locations yet</h3><p>Run LeadHunter with the bad-review filter enabled.</p></div></td></tr>';}['q','ceiling','laser'].forEach(function(id){document.getElementById(id).addEventListener(id==='q'?'input':'change',render);});document.getElementById('reload').onclick=load;load();});
+Onyx.requireAuth(function(){
+  var all=[];
+  var TOPICS={laser:/laser|hair removal|ipl|device|machine/i,wax:/wax|waxing|brazilian/i,all:/laser|hair removal|wax|waxing|brazilian|treatment|device|machine/i};
+  function load(){
+    document.getElementById('rows').innerHTML='<tr><td colspan="6" class="muted">Loading…</td></tr>';
+    Onyx.sheet('listLeads',{q:document.getElementById('q').value,size:200}).then(function(r){
+      if(!r.ok){document.getElementById('rows').innerHTML='<tr><td colspan="6" class="muted">'+Onyx.esc(r.error)+'</td></tr>';return;}
+      all=r.leads;render();
+    });
+  }
+  function render(){
+    var max=Number(document.getElementById('ceiling').value),topic=document.getElementById('topic').value,q=document.getElementById('q').value.toLowerCase(),rx=TOPICS[topic];
+    var rows=all.filter(function(l){
+      var rating=Number(l.rating);
+      if(!(rating>=0&&rating<=max))return false;
+      return rx.test([l.reviewFindings,l.reviewEvidence,l.searchTerm,l.category,l.name].join(' ').toLowerCase());
+    }).filter(function(l){
+      return !q||[l.name,l.city,l.state,l.reviewFindings].join(' ').toLowerCase().includes(q);
+    }).sort(function(a,b){return Number(a.rating)-Number(b.rating)||Number(b.reviewCount)-Number(a.reviewCount);});
+    document.getElementById('sub').textContent=rows.length+' locations matching '+document.getElementById('topic').options[document.getElementById('topic').selectedIndex].text+', worst public rating first';
+    document.getElementById('rows').innerHTML=rows.length?rows.map(function(l){
+      var why=l.reviewFindings||l.reviewOpportunity||'Low public rating — review excerpts have not been screened yet.';
+      return '<tr><td><span class="tag review">★ '+Onyx.esc(l.rating||'0')+'</span></td><td><b>'+Onyx.esc(l.name)+'</b></td><td>'+Onyx.esc([l.city,l.state].filter(Boolean).join(', '))+'</td><td>'+Onyx.esc(l.reviewCount||0)+'</td><td>'+Onyx.esc(why)+'</td><td><a class="btn quiet compact" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([l.name,l.city,l.state].join(' '))+'">Open reviews</a> <a class="btn primary compact" href="/lead/?id='+encodeURIComponent(l.id)+'">Open lead</a></td></tr>';
+    }).join(''):'<tr><td colspan="6"><div class="empty-state"><h3>No matching locations yet</h3><p>Collect leads in LeadHunter bad-review mode, then choose Research this lead to screen the saved review excerpts.</p></div></td></tr>';
+  }
+  ['q','ceiling','topic'].forEach(function(id){document.getElementById(id).addEventListener(id==='q'?'input':'change',render);});
+  document.getElementById('reload').onclick=load;load();
+});
 </script></body></html>

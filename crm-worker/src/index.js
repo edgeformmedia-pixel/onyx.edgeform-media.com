@@ -27,7 +27,7 @@ function leadColumns(r) {
     text(r.updatedAt), JSON.stringify(r)
   ];
 }
-function summary(r) { const out={}; ['id','name','category','phone','website','city','state','isNationalChain','buyerType','dmName','dmTitle','email','emailConfidence','leadScore','buyerFit','stage','owner','nextAction','nextActionDate','lastContacted','callAttempts','callOutcome','needsHumanReview','rating','reviewCount'].forEach(k=>out[k]=r[k]); return out; }
+function summary(r) { const out={}; ['id','name','category','phone','website','city','state','isNationalChain','buyerType','dmName','dmTitle','email','emailConfidence','leadScore','buyerFit','stage','owner','nextAction','nextActionDate','lastContacted','callAttempts','callOutcome','needsHumanReview','rating','reviewCount','reviewOpportunity','reviewFindings','reviewEvidence','serviceGap'].forEach(k=>out[k]=r[k]); return out; }
 function enrichmentWeight(row) {
   let data={};
   try { data=JSON.parse(row.data||'{}'); } catch {}
