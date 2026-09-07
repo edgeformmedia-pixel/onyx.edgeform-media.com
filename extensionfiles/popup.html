@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <h1>Onyx <span class="v">LeadHunter</span></h1>
+      <p class="tagline">Laser &amp; med spa prospecting</p>
+    </div>
+    <span id="pill" class="pill">Ready</span>
+  </header>
+
+  <p id="where" class="hint">Checking tab…</p>
+
+  <div class="summary">
+    <div><b id="sumTerms">0</b><span>terms</span></div>
+    <div><b id="sumCities">0</b><span>cities</span></div>
+    <div><b id="sumPages">0</b><span>page loads</span></div>
+  </div>
+
+  <section>
+    <h2>Search terms</h2>
+    <div class="adder">
+      <input type="text" id="termInput" placeholder="e.g. med spa" autocomplete="off" spellcheck="false">
+      <button id="addTerm" class="btn quiet compact">Add</button>
+    </div>
+    <ul id="termList" class="chips"></ul>
+    <p class="hint" id="termEmpty">One term per line. Each one is searched in every city below.</p>
+  </section>
+
+  <section>
+    <h2>Cities</h2>
+    <div class="adder">
+      <input type="text" id="cityInput" placeholder="e.g. Miami FL" autocomplete="off" spellcheck="false">
+      <button id="addCity" class="btn quiet compact">Add</button>
+    </div>
+    <ul id="cityList" class="chips"></ul>
+    <p class="hint">Include the state so Google doesn't guess wrong — "Aventura FL", not "Aventura".</p>
+  </section>
+
+  <section>
+    <h2>Google Sheet</h2>
+    <label class="switch">
+      <input type="checkbox" id="syncToSheet">
+      <span class="track"></span>
+      <span class="txt">Send leads straight to my sheet</span>
+    </label>
+    <div id="sheetFields">
+      <input type="text" id="sheetUrl" class="wide" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" spellcheck="false">
+      <input type="text" id="sheetSecret" class="wide" placeholder="Shared secret (must match the script)" autocomplete="off" spellcheck="false">
+      <div class="adder">
+        <button id="testSheet" class="btn quiet compact">Test connection</button>
+        <button id="showCode" class="btn quiet compact">Get the script &rsaquo;</button>
+      </div>
+      <p class="hint" id="sheetState">Not connected yet.</p>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="downloadCsv">
+      <span class="track"></span>
+      <span class="txt">Also download a CSV when the run ends</span>
+    </label>
+  </section>
+
+  <section>
+    <h2>Volume</h2>
+    <label class="field" for="limit">
+      <span>Stop after</span>
+      <input type="number" id="limit" min="1" max="100000" step="1">
+      <span>leads</span>
+    </label>
+    <label class="field" for="pagesPerQuery">
+      <span>Scan</span>
+      <input type="number" id="pagesPerQuery" min="1" max="10" step="1">
+      <span>result batches per term (~20 each)</span>
+    </label>
+    <label class="field" for="minDelayMs">
+      <span>Wait</span>
+      <input type="number" id="minDelayMs" min="300" max="60000" step="100">
+      <span>–</span>
+      <input type="number" id="maxDelayMs" min="300" max="60000" step="100">
+      <span>ms between search queries</span>
+    </label>
+    <p class="hint">This delay is only between search queries. Individual businesses are scraped as soon as their Maps elements appear.</p>
+  </section>
+
+  <section>
+    <h2>Filters</h2>
+    <label class="switch">
+      <input type="checkbox" id="requirePhone">
+      <span class="track"></span>
+      <span class="txt">Only keep leads with a phone number</span>
+    </label>
+    <label class="switch">
+      <input type="checkbox" id="skipChains">
+      <span class="track"></span>
+      <span class="txt">Skip national chains entirely</span>
+    </label>
+    <label class="switch">
+      <input type="checkbox" id="skipSeen">
+      <span class="track"></span>
+      <span class="txt">Skip leads I've already scraped</span>
+    </label>
+    <p class="hint">Leave this off — chains are tagged in the <b>isNationalChain</b> column so you can filter them in the sheet instead of losing them.</p>
+    <p class="hint meta">
+      <span id="seenCount">0</span> businesses remembered
+      <button id="forget" class="link" type="button">Forget history</button>
+    </p>
+  </section>
+
+  <section id="codePanel" hidden>
+    <h2>Paste this into Apps Script</h2>
+    <ol class="steps">
+      <li>Open your Google Sheet ▸ <b>Extensions ▸ Apps Script</b>.</li>
+      <li>Delete everything in <code>Code.gs</code>, paste this in.</li>
+      <li>Change <code>SHARED_SECRET</code> to any random string, then put that same string in the box above.</li>
+      <li><b>Deploy ▸ New deployment ▸ Web app</b>. Execute as <b>Me</b>, access <b>Anyone</b>.</li>
+      <li>Copy the <code>/exec</code> URL into the box above and hit Test connection.</li>
+    </ol>
+    <textarea id="codeBox" readonly spellcheck="false"></textarea>
+    <div class="adder">
+      <button id="copyCode" class="btn primary compact">Copy the script</button>
+      <button id="hideCode" class="btn quiet compact">Done</button>
+    </div>
+  </section>
+
+  <footer>
+    <button id="openSearch" class="btn quiet" hidden>Open a Google search tab</button>
+    <button id="start" class="btn primary">Start sweep</button>
+    <button id="stop" class="btn danger" hidden>Stop and download</button>
+    <button id="scan" class="btn quiet">Scan current page</button>
+    <button id="probe" class="btn quiet">Probe Maps DOM</button>
+    <button id="download" class="btn quiet">Export last run · <span id="leadCount">0</span></button>
+    <p class="msg" id="msg"></p>
+  </footer>
+
+  <script src="lists.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

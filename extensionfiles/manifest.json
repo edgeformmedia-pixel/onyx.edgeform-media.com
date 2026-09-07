@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "LeadHunter v3.5 \u2014 FAST Google Maps + ONYX",
+  "version": "3.5",
+  "description": "Fast Google Maps lead scraper built from live DOM probe selectors; captures name, phone, website, address, rating and syncs batches to ONYX.",
+  "permissions": [
+    "downloads",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.google.com/search*",
+    "https://www.google.com/maps*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.google.com/maps*"
+      ],
+      "js": [
+        "lists.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sheets-code.gs"
+      ],
+      "matches": [
+        "https://www.google.com/*"
+      ]
+    }
+  ]
+}
