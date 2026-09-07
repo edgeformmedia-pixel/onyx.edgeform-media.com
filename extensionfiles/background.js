@@ -10,11 +10,11 @@
 // nothing for you to configure on the Apps Script side.
 // ══════════════════════════════════════════════════════════════
 
-const ALLOWED = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?$/;
+const ALLOWED = /^(https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?|https:\/\/onyx-crm\.edgeformmedia\.workers\.dev\/?$/);
 
 async function callSheet(url, payload, timeoutMs) {
   if (!ALLOWED.test(String(url || '').trim())) {
-    return { ok: false, error: 'That does not look like an Apps Script /exec URL.' };
+    return { ok: false, error: 'That does not look like an ONYX CRM or Apps Script URL.' };
   }
 
   const ctrl = new AbortController();

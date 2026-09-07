@@ -180,6 +180,12 @@
 
   async function init() {
     S = Object.assign({}, LH3.DEFAULT_SETTINGS, await get(K_SET, {}));
+    if (/^https:\/\/script\.google\.com\/macros\/s\//.test(S.sheetUrl || '')) {
+      S.sheetUrl = LH3.DEFAULT_SETTINGS.sheetUrl;
+      S.sheetSecret = LH3.DEFAULT_SETTINGS.sheetSecret;
+      S.syncToSheet = true;
+      save();
+    }
     if (!Array.isArray(S.terms)) S.terms = [...LH3.DEFAULT_SETTINGS.terms];
     if (!Array.isArray(S.cities)) S.cities = [...LH3.DEFAULT_SETTINGS.cities];
 

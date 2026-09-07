@@ -3,8 +3,8 @@
    The Resend and OpenAI keys live only in the Cloudflare Worker. */
 
 window.ONYX_CONFIG = {
-  SHEET_URL: 'https://script.google.com/macros/s/AKfycbx-010mH-5F-bph70AQ6C88ZVHR2pSJy8jK2_eCwiI0MXsfyrfFtzXUqQ9g65RTigDX6w/exec',
-  SHEET_SECRET: 'test',                 // must match CONFIG.SHARED_SECRET in Code.gs
+  SHEET_URL: 'https://onyx-crm.edgeformmedia.workers.dev/',
+  SHEET_SECRET: 'test',                 // protected by the ONYX CRM Worker
   WORKER_URL: 'https://email.edgeformmedia.workers.dev/',
   WORKER_SECRET: 'test',                // must match ONYX_SECRET in the Worker
   SEND_DOMAIN: 'edgeform-media.com',

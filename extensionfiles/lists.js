@@ -18,9 +18,9 @@
     requirePhone: true,
     minDelayMs: 900,       // pause BETWEEN search queries; business clicks use event-driven waits
     maxDelayMs: 1500,
-    sheetUrl: '',          // Apps Script /exec URL
-    sheetSecret: '',       // must match SHARED_SECRET in the script
-    syncToSheet: false,
+    sheetUrl: 'https://onyx-crm.edgeformmedia.workers.dev/',
+    sheetSecret: 'test',
+    syncToSheet: true,
     downloadCsv: true
   };
 

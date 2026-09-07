@@ -482,7 +482,10 @@
   async function pushToSheet(rows,s){
     if(!s||!s.syncToSheet||!s.sheetUrl||!rows.length) return null;
     try{
-      const res=await chrome.runtime.sendMessage({type:'LH3_SHEET',url:s.sheetUrl,payload:{action:'appendLeads',secret:s.sheetSecret||'',rows}});
+      const crmUrl='https://onyx-crm.edgeformmedia.workers.dev/';
+      const url=/^https:\/\/script\.google\.com\/macros\/s\//.test(s.sheetUrl||'')?crmUrl:s.sheetUrl;
+      const secret=url===crmUrl?'test':(s.sheetSecret||'');
+      const res=await chrome.runtime.sendMessage({type:'LH3_SHEET',url,payload:{action:'appendLeads',secret,rows}});
       if(!res||!res.ok){status('Sheet sync failed: '+((res&&res.error)||'no reply'),'err');return null;}
       return res.data;
     }catch(e){status('Sheet sync failed: '+e.message,'err');return null;}

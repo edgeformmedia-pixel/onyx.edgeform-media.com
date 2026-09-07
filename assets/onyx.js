@@ -45,7 +45,7 @@ window.Onyx = (function () {
         }
         return d;
       })
-      .catch(function (e) { return { ok: false, error: 'Could not reach the sheet. ' + e.message }; });
+      .catch(function (e) { return { ok: false, error: 'Could not reach the CRM database. ' + e.message }; });
   }
 
   function worker(action, payload) {

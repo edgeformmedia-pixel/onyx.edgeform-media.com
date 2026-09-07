@@ -1,3 +1,6 @@
 .wrangler/
 .cf-worker-tail.log
 .cf-worker-tail.err.log
+.wrangler/
+crm-worker/import.sql
+migration/source/

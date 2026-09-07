@@ -13,6 +13,7 @@
     "https://www.google.com/maps*",
     "https://script.google.com/*",
     "https://script.googleusercontent.com/*"
+    ,"https://onyx-crm.edgeformmedia.workers.dev/*"
   ],
   "background": {
     "service_worker": "background.js"
