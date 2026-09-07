@@ -518,6 +518,24 @@ function externalContactDomains(lead) {
   ]);
 }
 
+// Some owner-operated local businesses trade under a name that never appears in
+// their LLC filing. These independent, public business profiles are useful for
+// resolving the operating name from an exact phone/address match. They are
+// candidate sources only: the owner prompt requires registry corroboration
+// before they can produce HIGH or VERIFIED confidence.
+function ownerFallbackDomains(lead) {
+  return uniq([
+    ...externalContactDomains(lead),
+    'countyadvisoryboard.com',
+    'guidetoflorida.com',
+    'fresha.com',
+    'yellowpages.com',
+    'manta.com',
+    'mapquest.com',
+    'yelp.com'
+  ]);
+}
+
 async function openaiStructuredSearch(env, body, system, user, schema, name, opts) {
   opts = opts || {};
   const webTool = { type: 'web_search', search_context_size: opts.searchContextSize || 'low' };
@@ -586,7 +604,7 @@ RULES:
 
 const OWNER_PRIMARY_SYSTEM = OWNER_BASE + `\n\nREGISTRY-FIRST PASS. Spend the one search on the exact legal/business identity. Search the state corporation/LLC registry first (Secretary of State / Division of Corporations; Sunbiz for Florida), then BBB/operator records and exact-address/phone entity matches. Look for current officers, managers, members, principals, presidents, annual reports, filing numbers, DBA/fictitious-name links, and affiliated entities at the exact suite. DO NOT use the company website.`;
 
-const OWNER_FALLBACK_SYSTEM = OWNER_BASE + `\n\nEXTERNAL FALLBACK PASS. The registry-first pass was weak or unresolved. Do NOT use the company website. Target only missing evidence using BBB, professional licensing/NPI/provider records, state medical/nursing boards, local business licenses, AllBiz/Chamber/credible directories, exact phone/address reverse-business results, LinkedIn leadership, press/interviews, and professional/publication bios. Do not repeat already-established sources.`;
+const OWNER_FALLBACK_SYSTEM = OWNER_BASE + `\n\nEXTERNAL FALLBACK / IDENTITY-RESOLUTION PASS. The registry-first pass was weak or unresolved. Do NOT use the company website. First resolve the operating business from the exact phone + full street/suite + city/state; this is especially important when the trade name differs from the LLC name. Then target missing evidence using BBB, professional licensing/NPI/provider records, state medical/nursing boards, local business licenses, AllBiz/Chamber/credible directories, exact phone/address reverse-business results, LinkedIn leadership, press/interviews, and professional/publication bios. An exact-match independent directory or owner spotlight may identify a human as a MEDIUM-confidence candidate, but it can NEVER by itself justify HIGH or VERIFIED confidence; require Sunbiz/another official record or independent corroboration to upgrade it. Do not repeat already-established sources.`;
 
 function ownerSearchPrompt(lead, crawl, prior) {
   const priorText = prior ? `\n\nREGISTRY-FIRST RESULT:\n${JSON.stringify(prior).slice(0, 12000)}\nFind only what remains weak or missing.` : '';
@@ -594,7 +612,7 @@ function ownerSearchPrompt(lead, crawl, prior) {
   const registryHint = state === 'FL'
     ? 'STATE REGISTRY TARGET: Florida Division of Corporations / Sunbiz (search.sunbiz.org). Look for the exact LLC/corporation, current annual report, manager/member/officer names, filing number, and exact address.'
     : `STATE REGISTRY TARGET: official ${state || 'state'} Secretary of State / Division of Corporations corporation-and-LLC registry. Look for current entity/officer/member/manager records and exact-address matches.`;
-  return `Resolve the decision maker using EXTERNAL records only.\n\n${leadFacts(lead)}\n\n${registryHint}${priorText}\n\nDo not use or cite the company website. Search the legal entity, LLC/corporation, BBB/operator record, exact address/suite, and exact phone. Return Unknown only if this budgeted external-record pass cannot defensibly identify a human.`;
+  return `Resolve the decision maker using EXTERNAL records only.\n\n${leadFacts(lead)}\n\n${registryHint}${priorText}\n\nDo not use or cite the company website. Search the legal entity, LLC/corporation, BBB/operator record, exact address/suite, and exact phone. If the legal entity is unclear, explicitly use the full phone + exact suite/address to resolve the operating-name-to-owner candidate before returning Unknown. Return Unknown only if this budgeted external-record pass cannot defensibly identify a human.`;
 }
 
 function confidenceRank(v) { return ({ VERIFIED: 4, HIGH: 3, MEDIUM: 2, LOW: 1 })[v] || 0; }
@@ -657,7 +675,7 @@ async function resolveOwnerCore(body, env, lead, crawl) {
   let fallback = null;
   try {
     fallback = await openaiStructuredSearch(env, body, OWNER_FALLBACK_SYSTEM, ownerSearchPrompt(lead, crawl, primary), ownerSchema, 'onyx_owner_fallback', {
-      searchContextSize: 'low', maxOutputTokens: 2500, effort: 'low', allowedDomains: externalContactDomains(lead)
+      searchContextSize: 'low', maxOutputTokens: 2500, effort: 'low', allowedDomains: ownerFallbackDomains(lead)
     });
     webPasses++;
   } catch (_) { fallback = null; }
