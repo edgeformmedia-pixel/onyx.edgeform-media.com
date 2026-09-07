@@ -24,7 +24,7 @@
 
   const LH3 = window.LH3;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const K_RUN='lh3_run', K_SET='lh3_settings', K_SEEN='lh3_seen', K_LEADS='lh3_leads', K_HISTORY='lh3_research_history', K_PROBE='lh3_probe';
+  const K_RUN='lh3_run', K_SET='lh3_settings', K_SEEN='lh3_seen', K_LEADS='lh3_leads', K_HISTORY='lh3_research_history', K_PROBE='lh3_probe', K_UPLOAD_QUEUE='lh4_upload_queue';
   const get = async (k,d) => { const o=await chrome.storage.local.get(k); return o[k]===undefined?d:o[k]; };
   const set = o => chrome.storage.local.set(o);
   const txt = el => (el ? (el.textContent || '').replace(/\s+/g,' ').trim() : '');
@@ -36,7 +36,7 @@
   const DETAIL_COOLDOWN_MS=700;
 
   let PANEL, STATUS_EL, META_EL, FILL_EL, TRACK_EL, START_BTN, STOP_BTN, SCAN_BTN, PROBE_BTN;
-  let stepGuard=false;
+  let stepGuard=false, uploadFlushGuard=false;
 
   async function liveRun(gen) {
     const r=await get(K_RUN,null);
@@ -448,7 +448,9 @@
 
   async function openAndParse(place, ctx, gen, settings) {
     const expected=cleanCardName(place.name);
-    const requirePhone=settings ? settings.requirePhone!==false : true;
+    // Always spend the full phone window when needed; missing phone is no
+    // longer a reason to discard an otherwise valid Google business.
+    const requirePhone=true;
     let openedAt=Date.now();
 
     // If Maps already has this exact place open, scrape immediately.
@@ -495,13 +497,9 @@
   }
 
   async function saveCompletedLead(lead, settings) {
-    if(settings.skipChains && LH3.isChain(lead.name)) return {saved:false,reason:'chain'};
-    if(settings.requirePhone && !lead.phone) return {saved:false,reason:'no phone'};
-    if(settings.badReviewMode && !Number(lead.rating)) return {saved:false,reason:'no rating'};
-    if(settings.badReviewMode && (Number(lead.rating)<Number(settings.minRating||0) || Number(lead.rating)>Number(settings.maxRating||5))) return {saved:false,reason:'outside rating range'};
-    if(settings.badReviewMode && settings.laserOnly && !/laser|hair removal/i.test([lead.searchTerm,lead.category,lead.name].join(' '))) return {saved:false,reason:'outside laser context'};
-
-    if(settings.badReviewMode){
+    // Collection mode uploads every unique Google business after the complete
+    // detail wait. Missing fields are recorded as empty instead of dropping it.
+    if(settings.badReviewMode && Number(lead.rating)>=Number(settings.minRating||0) && Number(lead.rating)<=Number(settings.maxRating||5)){
       lead.reviewOpportunity=Number(lead.rating)<=1?'Urgent: 0–1 star public rating':Number(lead.rating)<=2?'Priority: 1–2 star public rating':'';
       lead.reviewResearchStatus=lead.reviewOpportunity?'Open Google Maps reviews to validate laser-hair-removal complaint.':'';
     }
@@ -509,17 +507,18 @@
     const key=LH3.leadKey(lead);
     const leads=await get(K_LEADS,[]);
     if(leads.some(x=>LH3.leadKey(x)===key)) return {saved:false,reason:'duplicate'};
-    if(settings.skipSeen && new Set(await get(K_SEEN,[])).has(key)) return {saved:false,reason:'scraped before'};
+    if(new Set(await get(K_SEEN,[])).has(key)) return {saved:false,reason:'already collected'};
 
     leads.push(lead);
     await set({[K_LEADS]:leads});
     const history=await get(K_HISTORY,[]), known=new Set(history.map(LH3.leadKey));
     if(!known.has(key)){history.push(lead);await set({[K_HISTORY]:history.slice(-5000)});}
 
+    await queueForUpload(lead);
     let synced='', needsSync=false;
     if(settings.syncToSheet){
       const response=await pushToSheet([lead]);
-      if(response) synced=`ONYX +${response.added}`;
+      if(response){synced=`ONYX +${response.added}`;await removeFromUploadQueue([key]);}
       else needsSync=true;
     }
     Object.defineProperty(lead,'__savedDuringCollection',{value:true,enumerable:false});
@@ -541,7 +540,8 @@
     captureVisible(discovered);
 
     while(processed<target){
-      if(!await liveRun(gen)) break;
+      const loopRun=await liveRun(gen);
+      if(!loopRun || Number(loopRun.total||0)>=Number(loopRun.limit||target)) break;
       const places=[...discovered.values()];
 
       if(cursor<places.length){
@@ -552,6 +552,14 @@
         if(rec){
           rows.push(rec);
           const saved=await saveCompletedLead(rec,s);
+          if(saved.saved){
+            const progressRun=await liveRun(gen);
+            if(progressRun){
+              progressRun.total=Math.min(progressRun.limit,Number(progressRun.total||0)+1);
+              await set({[K_RUN]:progressRun});
+              render(progressRun);
+            }
+          }
           status(saved.saved
             ? `Saved card ${processed}: ${rec.name}${saved.synced?' · '+saved.synced:''}`
             : `Finished card ${processed}: ${rec.name} · not saved (${saved.reason})`, saved.saved&&!saved.needsSync?'ok':'warn');
@@ -606,14 +614,14 @@
       const s=run.settings;
       const target=Math.min(cur.target||20, Math.max(0,run.limit-run.total));
       const rows=await scrapeMapsQuery(cur,target,s,gen);
-      if(!await liveRun(gen)) return;
+      const currentRun=await liveRun(gen); if(!currentRun) return;
 
       const seen=s.skipSeen?new Set(await get(K_SEEN,[])):new Set();
       const leads=await get(K_LEADS,[]); const have=new Set(leads.map(LH3.leadKey));
       let added=0; const kept=[]; const skip={chain:0,nophone:0,dupe:0,seen:0};
       for(const b of rows){
-        if(run.total+added>=run.limit) break;
-        if(b.__savedDuringCollection){added++;if(b.__needsOnyxSync)kept.push(b);continue;}
+        if(currentRun.total+added>=currentRun.limit) break;
+        if(b.__savedDuringCollection){if(b.__needsOnyxSync)kept.push(b);continue;}
         if(s.skipChains && LH3.isChain(b.name)){skip.chain++;continue;}
         if(s.requirePhone && !b.phone){skip.nophone++;continue;}
         if(s.badReviewMode&&!Number(b.rating)){skip.unrated=(skip.unrated||0)+1;continue;}
@@ -631,7 +639,7 @@
       let synced='';
       if(kept.length && s.syncToSheet){ const r=await pushToSheet(kept,s); if(r) synced=` · sheet +${r.added}`; }
       status(`“${cur.term}” ${cur.city} — kept ${added}/${rows.length}`+synced+(added?'':` · ${why(skip,rows.length)}`), added?'ok':'warn');
-      return advance(run,added);
+      return advance(currentRun,added);
     }catch(e){
       console.error('[LeadHunter4]',e);
       status('Maps scrape error: '+(e.message||e),'err');
@@ -669,6 +677,50 @@
     }catch(e){status('ONYX sync failed: '+e.message,'err');return null;}
   }
 
+  async function queueForUpload(lead) {
+    const queue=await get(K_UPLOAD_QUEUE,[]), key=LH3.leadKey(lead);
+    const next=queue.filter(item=>LH3.leadKey(item)!==key);
+    next.push(lead);
+    await set({[K_UPLOAD_QUEUE]:next.slice(-1000)});
+  }
+
+  async function removeFromUploadQueue(keys) {
+    const wanted=new Set(keys), queue=await get(K_UPLOAD_QUEUE,[]);
+    await set({[K_UPLOAD_QUEUE]:queue.filter(item=>!wanted.has(LH3.leadKey(item)))});
+  }
+
+  async function flushUploadQueue(showProgress=false) {
+    if(uploadFlushGuard)return {added:0,duplicates:0,pending:(await get(K_UPLOAD_QUEUE,[])).length,busy:true};
+    uploadFlushGuard=true;
+    let added=0,duplicates=0,failed=false;
+    try{
+      const queue=await get(K_UPLOAD_QUEUE,[]);
+      for(let i=0;i<queue.length;i+=100){
+        const batch=queue.slice(i,i+100);
+        if(showProgress)status(`Uploading ${Math.min(i+batch.length,queue.length)}/${queue.length} queued leads to ONYX…`);
+        const response=await pushToSheet(batch);
+        if(!response){failed=true;break;}
+        added+=Number(response.added)||0;
+        duplicates+=Number(response.duplicates)||0;
+        await removeFromUploadQueue(batch.map(LH3.leadKey));
+      }
+      const pending=(await get(K_UPLOAD_QUEUE,[])).length;
+      return {added,duplicates,pending,failed};
+    }finally{uploadFlushGuard=false;}
+  }
+
+  async function syncAllToOnyx(leads) {
+    const result={added:0,duplicates:0,failed:false};
+    for(let i=0;i<leads.length;i+=100){
+      const response=await pushToSheet(leads.slice(i,i+100));
+      if(!response){result.failed=true;continue;}
+      result.added+=Number(response.added)||0;
+      result.duplicates+=Number(response.duplicates)||0;
+      await removeFromUploadQueue(leads.slice(i,i+100).map(LH3.leadKey));
+    }
+    return result;
+  }
+
   async function downloadCsv(leads){
     const csv='\uFEFF'+LH3.buildCsv(leads), filename=LH3.csvFilename('leadhunter-maps-complete');
     try{const r=await chrome.runtime.sendMessage({type:'LH3_DOWNLOAD',csv,filename}); if(r&&r.ok)return true; throw new Error(r&&r.error?r.error:'download blocked');}
@@ -687,7 +739,19 @@
 
   async function stopRun(exportNow){
     const run=await get(K_RUN,null); if(run){run.active=false;run.gen=0;run.plan=[];await set({[K_RUN]:run});}
-    if(exportNow)return finish('Stopped'); status('Stopped','warn');render(null);
+    if(exportNow){
+      const leads=await get(K_LEADS,[]);
+      let reason='Stopped';
+      if(leads.length){
+        status(`Stopping · final ONYX upload for ${leads.length} saved leads…`);
+        const synced=await syncAllToOnyx(leads);
+        reason=synced.failed
+          ? `Stopped · final ONYX upload had an error`
+          : `Stopped · ONYX confirmed ${synced.added} new and ${synced.duplicates} duplicates`;
+      }
+      return finish(reason);
+    }
+    status('Stopped','warn');render(null);
   }
 
   async function scanThisPage(){
@@ -937,6 +1001,8 @@
 
   (async function boot(){
     build();const run=await get(K_RUN,null);render(run);
+    if((await get(K_UPLOAD_QUEUE,[])).length)flushUploadQueue(false);
     if(run&&run.active&&run.plan&&run.plan.length&&run.gen){status('Resuming Maps sweep…','ok');setTimeout(step,300);}
   })();
+  setInterval(()=>flushUploadQueue(false),10000);
 })();

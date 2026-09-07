@@ -16,6 +16,35 @@ function publicUser(u) { return { username:u.username, name:u.name, email:u.emai
 function leadFrom(row) { const data = JSON.parse(row.data || '{}'); return { ...data, id:row.id, name:row.name, category:row.category, phone:row.phone, website:row.website, city:row.city, state:row.state, rating:row.rating, reviewCount:row.review_count, isNationalChain:row.is_national_chain, dmName:row.dm_name, dmTitle:row.dm_title, email:row.email, leadScore:row.lead_score, stage:row.stage, owner:row.owner, nextActionDate:row.next_action_date, lastContacted:row.last_contacted, enrichedAt:row.enriched_at, needsHumanReview:!!row.needs_human_review, scrapedAt:row.scraped_at, updatedAt:row.updated_at }; }
 function leadColumns(r) { return [r.name, r.category, r.phone, r.website, r.city, r.state, Number(r.rating)||null, Number(r.reviewCount)||0, r.isNationalChain, r.dmName, r.dmTitle, r.email, Number(r.leadScore)||0, r.stage, r.owner, r.nextActionDate, r.lastContacted, r.enrichedAt, r.needsHumanReview ? 1 : 0, r.scrapedAt, r.updatedAt, JSON.stringify(r)]; }
 function summary(r) { const out={}; ['id','name','category','phone','website','city','state','isNationalChain','buyerType','dmName','dmTitle','email','emailConfidence','leadScore','buyerFit','stage','owner','nextAction','nextActionDate','lastContacted','callAttempts','callOutcome','needsHumanReview','rating','reviewCount'].forEach(k=>out[k]=r[k]); return out; }
+function enrichmentWeight(row) {
+  let data={};
+  try { data=JSON.parse(row.data||'{}'); } catch {}
+  const value=k=>text(row[k] ?? data[k]);
+  let score=0;
+  if(value('enriched_at'))score+=1000;
+  if(value('dm_name'))score+=300;
+  if(value('email'))score+=300;
+  if(Number(row.lead_score||data.leadScore)>0)score+=180;
+  if(value('owner'))score+=120;
+  if(value('last_contacted'))score+=120;
+  if(value('notes'))score+=80;
+  if(value('website'))score+=30;
+  if(value('phone'))score+=30;
+  return score;
+}
+async function duplicateRows(env, lead) {
+  const pk=phoneKey(lead.phone);
+  if(pk)return (await env.DB.prepare("SELECT rowid AS _rowid,* FROM leads WHERE replace(replace(replace(replace(replace(phone,'(',''),')',''),'-',''),' ',''),'+','') LIKE ? ORDER BY rowid ASC LIMIT 25").bind('%'+pk).all()).results;
+  return (await env.DB.prepare('SELECT rowid AS _rowid,* FROM leads WHERE lower(name)=? AND lower(city)=? ORDER BY rowid ASC LIMIT 25').bind(text(lead.name).toLowerCase(),text(lead.city).toLowerCase()).all()).results;
+}
+async function preserveBestDuplicate(env, rows) {
+  if(rows.length<2)return 0;
+  const ranked=[...rows].sort((a,b)=>enrichmentWeight(b)-enrichmentWeight(a) || Number(a._rowid)-Number(b._rowid));
+  const keep=ranked[0];
+  const remove=ranked.slice(1).filter(row=>row.id!==keep.id);
+  if(remove.length)await env.DB.batch(remove.map(row=>env.DB.prepare('DELETE FROM leads WHERE id=?').bind(row.id)));
+  return remove.length;
+}
 async function userFor(env, token) { if (!token) return null; const row = await env.DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.username=s.username WHERE s.token=? AND s.expires>? AND u.active=1').bind(token, now()).first(); return row ? publicUser(row) : null; }
 async function log(env, who, lead, type, detail) { await env.DB.prepare('INSERT INTO activity(at,user,lead_id,lead_name,type,detail) VALUES(?,?,?,?,?,?)').bind(now(), who.name || who.username, lead?.id || '', lead?.name || '', type, text(detail).slice(0,900)).run(); }
 async function getLead(env, leadId) { const row=await env.DB.prepare('SELECT * FROM leads WHERE id=?').bind(leadId).first(); return row ? leadFrom(row) : null; }
@@ -29,7 +58,23 @@ async function handle(env, b) {
   if (!(await safeEqual(b.secret, env.ONYX_SECRET))) return {ok:false,error:'Bad secret.'};
   if (b.action==='ping') { const x=await env.DB.prepare('SELECT count(*) n FROM leads').first(); return {ok:true,service:'ONYX CRM',leads:x.n}; }
   if (b.action==='login') { const u=await env.DB.prepare('SELECT * FROM users WHERE lower(username)=? OR lower(email)=?').bind(text(b.username).toLowerCase(),text(b.username).toLowerCase()).first(); if (!u || !u.active || !(await safeEqual(await hash(u.salt+text(b.password)),u.hash))) return {ok:false,error:'Wrong username or password.'}; const token=id()+id(); await env.DB.batch([env.DB.prepare('INSERT INTO sessions(token,username,expires) VALUES(?,?,?)').bind(token,u.username,new Date(Date.now()+12*3600e3).toISOString()),env.DB.prepare('UPDATE users SET last_login=? WHERE username=?').bind(now(),u.username),env.DB.prepare('DELETE FROM sessions WHERE expires<=?').bind(now())]); return {ok:true,token,user:publicUser(u)}; }
-  if (b.action==='appendLeads') { const rows=Array.isArray(b.rows)?b.rows:[]; let added=0,duplicates=0; for (const raw of rows.slice(0,200)) { const r={...raw,id:text(raw.id)||id(),stage:text(raw.stage)||'New Lead',callAttempts:Number(raw.callAttempts)||0,updatedAt:now()}; const pk=phoneKey(r.phone); const dupe=pk ? await env.DB.prepare("SELECT id FROM leads WHERE replace(replace(replace(replace(replace(phone,'(',''),')',''),'-',''),' ',''),'+','') LIKE ? LIMIT 1").bind('%'+pk).first() : await env.DB.prepare('SELECT id FROM leads WHERE lower(name)=? AND lower(city)=? LIMIT 1').bind(text(r.name).toLowerCase(),text(r.city).toLowerCase()).first(); if(dupe){duplicates++;continue;} await env.DB.prepare('INSERT INTO leads(id,name,category,phone,website,city,state,rating,review_count,is_national_chain,dm_name,dm_title,email,lead_score,stage,owner,next_action_date,last_contacted,enriched_at,needs_human_review,scraped_at,updated_at,data) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(r.id,...leadColumns(r)).run(); added++; } const total=(await env.DB.prepare('SELECT count(*) n FROM leads').first()).n; return {ok:true,added,duplicates,total}; }
+  if (b.action==='appendLeads') {
+    const rows=Array.isArray(b.rows)?b.rows:[];
+    let added=0,duplicates=0,duplicateRowsDeleted=0;
+    for(const raw of rows.slice(0,200)){
+      const r={...raw,id:text(raw.id)||id(),stage:text(raw.stage)||'New Lead',callAttempts:Number(raw.callAttempts)||0,updatedAt:now()};
+      const matches=await duplicateRows(env,r);
+      if(matches.length){
+        duplicates++;
+        duplicateRowsDeleted+=await preserveBestDuplicate(env,matches);
+        continue;
+      }
+      await env.DB.prepare('INSERT INTO leads(id,name,category,phone,website,city,state,rating,review_count,is_national_chain,dm_name,dm_title,email,lead_score,stage,owner,next_action_date,last_contacted,enriched_at,needs_human_review,scraped_at,updated_at,data) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(r.id,...leadColumns(r)).run();
+      added++;
+    }
+    const total=(await env.DB.prepare('SELECT count(*) n FROM leads').first()).n;
+    return {ok:true,added,duplicates,duplicateRowsDeleted,total};
+  }
   if (b.action==='checkInvite') { const x=await env.DB.prepare('SELECT * FROM invites WHERE token=?').bind(b.token).first(); if(!x)return {ok:false,error:'This link is not valid.'}; if(x.used_at || Date.parse(x.expires)<=Date.now())return {ok:false,error:x.used_at?'That link was already used.':'That link has expired. Ask an admin for a new one.'}; return {ok:true,email:x.email,name:x.name,kind:x.kind}; }
   if (b.action==='activate') { const x=await env.DB.prepare('SELECT * FROM invites WHERE token=?').bind(b.token).first(); if(!x||x.used_at||Date.parse(x.expires)<=Date.now())return {ok:false,error:'This link is no longer valid.'}; if(text(b.password).length<8)return {ok:false,error:'Use at least 8 characters.'}; const existing=await env.DB.prepare('SELECT * FROM users WHERE lower(email)=?').bind(x.email.toLowerCase()).first(); const salt=id(),h=await hash(salt+text(b.password)); if(x.kind==='reset'){if(!existing)return {ok:false,error:'No account for that address.'}; await env.DB.prepare('UPDATE users SET salt=?,hash=? WHERE username=?').bind(salt,h,existing.username).run();}else{if(existing)return {ok:false,error:'That account already exists — sign in instead.'}; let username=text(b.username||x.email.split('@')[0]).toLowerCase().replace(/[^a-z0-9._-]/g,''); if(!username)username='user'; const found=await env.DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first(); if(found)username+=crypto.getRandomValues(new Uint32Array(1))[0].toString().slice(-3); await env.DB.prepare('INSERT INTO users(username,name,email,role,salt,hash,active,created_at) VALUES(?,?,?,?,?,?,1,?)').bind(username,x.name,x.email,x.role,salt,h,now()).run();} await env.DB.prepare('UPDATE invites SET used_at=? WHERE token=?').bind(now(),x.token).run(); return {ok:true,message:'Account ready. You can sign in now.'}; }
   if (b.action==='forgotPassword') { const u=await env.DB.prepare('SELECT * FROM users WHERE lower(email)=? AND active=1').bind(text(b.email).toLowerCase()).first(); if(u){const token=await invite(env,u.email,u.name,u.role,'reset'); await sendMail(env,u.email,'Reset your ONYX password',mail('Password reset',button(`${SITE_URL}/activate/?id=${token}`,'Set a new password')));} return {ok:true,message:'If that address has an account, a reset link is on its way.'}; }
