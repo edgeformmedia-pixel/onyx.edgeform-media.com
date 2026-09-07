@@ -90,6 +90,7 @@ window.Onyx = (function () {
   var NAV = [
     { href: '/home/', label: 'Home' },
     { href: '/pipeline/', label: 'Pipeline' },
+    { href: '/bad-reviewed/', label: 'Bad Reviewed Locations' },
     { href: '/calls/', label: 'Call list' },
     { href: '/email/', label: 'Email' },
     { href: '/admin/', label: 'Admin', adminOnly: true }

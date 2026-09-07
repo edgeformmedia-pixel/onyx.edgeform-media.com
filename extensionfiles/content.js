@@ -441,6 +441,11 @@
         if(run.total+added>=run.limit) break;
         if(s.skipChains && LH3.isChain(b.name)){skip.chain++;continue;}
         if(s.requirePhone && !b.phone){skip.nophone++;continue;}
+        if(!Number(b.rating)){skip.unrated=(skip.unrated||0)+1;continue;}
+        if(Number(b.rating)<Number(s.minRating||0)||Number(b.rating)>Number(s.maxRating||5)){skip.rating=(skip.rating||0)+1;continue;}
+        if(s.laserOnly&&!/laser|hair removal/i.test([b.searchTerm,b.category,b.name].join(' '))){skip.laser=(skip.laser||0)+1;continue;}
+        b.reviewOpportunity=Number(b.rating)<=1?'Urgent: 0–1 star public rating':Number(b.rating)<=2?'Priority: 1–2 star public rating':'';
+        b.reviewResearchStatus=b.reviewOpportunity?'Open Google Maps reviews to validate laser-hair-removal complaint.':'';
         const k=LH3.leadKey(b);
         if(have.has(k)){skip.dupe++;continue;}
         if(seen.has(k)){skip.seen++;continue;}
@@ -476,7 +481,7 @@
   function why(skip,total){
     if(!total) return 'no Maps businesses found';
     const b=[]; if(skip.nophone)b.push(`${skip.nophone} had no phone`); if(skip.chain)b.push(`${skip.chain} chains`); if(skip.seen)b.push(`${skip.seen} scraped before`); if(skip.dupe)b.push(`${skip.dupe} repeats`);
-    return b.length?'skipped '+b.join(', '):'nothing new';
+    if(skip.unrated)b.push(`${skip.unrated} had no rating`); if(skip.rating)b.push(`${skip.rating} outside star range`); if(skip.laser)b.push(`${skip.laser} outside laser context`); return b.length?'skipped '+b.join(', '):'nothing new';
   }
 
   async function pushToSheet(rows,s){
@@ -523,7 +528,7 @@
     const rows=await scrapeMapsQuery(ctx,target,s,fakeGen);
     temp.active=false;temp.gen=0;await set({[K_RUN]:temp});
     const out=[],have=new Set(),seen=s.skipSeen?new Set(await get(K_SEEN,[])):new Set();
-    for(const b of rows){if(s.skipChains&&LH3.isChain(b.name))continue;if(s.requirePhone&&!b.phone)continue;const k=LH3.leadKey(b);if(have.has(k)||seen.has(k))continue;have.add(k);out.push(b);}
+    for(const b of rows){if(s.skipChains&&LH3.isChain(b.name))continue;if(s.requirePhone&&!b.phone)continue;if(!Number(b.rating)||Number(b.rating)<Number(s.minRating||0)||Number(b.rating)>Number(s.maxRating||5))continue;if(s.laserOnly&&!/laser|hair removal/i.test([b.searchTerm,b.category,b.name].join(' ')))continue;b.reviewOpportunity=Number(b.rating)<=1?'Urgent: 0–1 star public rating':'Priority: 1–2 star public rating';b.reviewResearchStatus='Open Google Maps reviews to validate laser-hair-removal complaint.';const k=LH3.leadKey(b);if(have.has(k)||seen.has(k))continue;have.add(k);out.push(b);}
     if(!out.length){status('No new businesses with phone numbers were found on this Maps search.','warn');return;}
     await set({[K_LEADS]:out});
     let tail='';if(s.syncToSheet){const r=await pushToSheet(out,s);if(r)tail=` · sheet +${r.added}`;}if(s.downloadCsv!==false)await downloadCsv(out);

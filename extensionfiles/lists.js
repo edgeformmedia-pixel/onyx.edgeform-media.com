@@ -6,10 +6,7 @@
   'use strict';
 
   const DEFAULT_SETTINGS = {
-    terms: [
-      'laser hair removal', 'med spa', 'medical spa',
-      'waxing salon', 'aesthetic clinic', 'body sculpting'
-    ],
+    terms: ['laser hair removal'],
     cities: ['Miami FL'],
     limit: 200,
     pagesPerQuery: 3,      // Google serves 20 local results per page
@@ -18,6 +15,9 @@
     requirePhone: true,
     minDelayMs: 900,       // pause BETWEEN search queries; business clicks use event-driven waits
     maxDelayMs: 1500,
+    minRating: 0,
+    maxRating: 2,
+    laserOnly: true,
     sheetUrl: 'https://onyx-crm.edgeformmedia.workers.dev/',
     sheetSecret: 'test',
     syncToSheet: true,

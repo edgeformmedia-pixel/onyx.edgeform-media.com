@@ -196,6 +196,9 @@
     $('pagesPerQuery').value = S.pagesPerQuery;
     $('minDelayMs').value = S.minDelayMs;
     $('maxDelayMs').value = S.maxDelayMs;
+    $('minRating').value = S.minRating;
+    $('maxRating').value = S.maxRating;
+    $('laserOnly').checked = S.laserOnly !== false;
     $('sheetUrl').value = S.sheetUrl || '';
     $('sheetSecret').value = S.sheetSecret || '';
     $('syncToSheet').checked = !!S.syncToSheet;
@@ -228,6 +231,8 @@
     num('pagesPerQuery', 1, 10, renderSummary);
     num('minDelayMs', 300, 60000);
     num('maxDelayMs', 300, 60000);
+    num('minRating', 0, 5);
+    num('maxRating', 0, 5);
 
     const text = id => $(id).addEventListener('change', () => {
       S[id] = $(id).value.trim(); save();
@@ -243,6 +248,7 @@
     tog('requirePhone');
     tog('skipChains');
     tog('skipSeen');
+    tog('laserOnly');
 
     $('forget').addEventListener('click', async () => {
       await chrome.storage.local.set({ [K_SEEN]: [] });
