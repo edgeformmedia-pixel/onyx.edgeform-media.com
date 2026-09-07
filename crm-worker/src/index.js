@@ -15,7 +15,18 @@ async function hash(v) { const b = await crypto.subtle.digest('SHA-256', new Tex
 async function safeEqual(a, b) { const aa = new TextEncoder().encode(text(a)), bb = new TextEncoder().encode(text(b)); if (aa.length !== bb.length) return false; return crypto.subtle.timingSafeEqual(aa, bb); }
 function publicUser(u) { return { username:u.username, name:u.name, email:u.email, role:u.role }; }
 function leadFrom(row) { const data = JSON.parse(row.data || '{}'); return { ...data, id:row.id, name:row.name, category:row.category, phone:row.phone, website:row.website, city:row.city, state:row.state, rating:row.rating, reviewCount:row.review_count, isNationalChain:row.is_national_chain, dmName:row.dm_name, dmTitle:row.dm_title, email:row.email, leadScore:row.lead_score, stage:row.stage, owner:row.owner, nextActionDate:row.next_action_date, lastContacted:row.last_contacted, enrichedAt:row.enriched_at, needsHumanReview:!!row.needs_human_review, scrapedAt:row.scraped_at, updatedAt:row.updated_at }; }
-function leadColumns(r) { return [r.name, r.category, r.phone, r.website, r.city, r.state, Number(r.rating)||null, Number(r.reviewCount)||0, r.isNationalChain, r.dmName, r.dmTitle, r.email, Number(r.leadScore)||0, r.stage, r.owner, r.nextActionDate, r.lastContacted, r.enrichedAt, r.needsHumanReview ? 1 : 0, r.scrapedAt, r.updatedAt, JSON.stringify(r)]; }
+function leadColumns(r) {
+  // D1 does not accept JavaScript `undefined` as a bound value. Fresh Maps
+  // records intentionally omit CRM-only fields, so normalize them here.
+  return [
+    text(r.name), text(r.category), text(r.phone), text(r.website), text(r.city), text(r.state),
+    Number(r.rating)||null, Number(r.reviewCount)||0, text(r.isNationalChain),
+    text(r.dmName), text(r.dmTitle), text(r.email), Number(r.leadScore)||0,
+    text(r.stage), text(r.owner), text(r.nextActionDate), text(r.lastContacted),
+    text(r.enrichedAt), r.needsHumanReview ? 1 : 0, text(r.scrapedAt),
+    text(r.updatedAt), JSON.stringify(r)
+  ];
+}
 function summary(r) { const out={}; ['id','name','category','phone','website','city','state','isNationalChain','buyerType','dmName','dmTitle','email','emailConfidence','leadScore','buyerFit','stage','owner','nextAction','nextActionDate','lastContacted','callAttempts','callOutcome','needsHumanReview','rating','reviewCount'].forEach(k=>out[k]=r[k]); return out; }
 function enrichmentWeight(row) {
   let data={};

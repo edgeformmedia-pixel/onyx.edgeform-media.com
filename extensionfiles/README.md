@@ -1,4 +1,4 @@
-# ONYX LeadHunter v4.3
+# ONYX LeadHunter v4.4
 
 This Chrome extension collects Google Maps businesses one at a time and saves
 each completed lead to ONYX before opening the next result.

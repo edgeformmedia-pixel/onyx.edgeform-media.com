@@ -561,7 +561,7 @@
             }
           }
           status(saved.saved
-            ? `Saved card ${processed}: ${rec.name}${saved.synced?' · '+saved.synced:''}`
+            ? `Saved card ${processed}: ${rec.name}${saved.synced?' · '+saved.synced:saved.needsSync?' · ONYX retry queued':''}`
             : `Finished card ${processed}: ${rec.name} · not saved (${saved.reason})`, saved.saved&&!saved.needsSync?'ok':'warn');
           await sleep(DETAIL_COOLDOWN_MS);
         }
