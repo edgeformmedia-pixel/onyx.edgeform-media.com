@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LeadHunter v3.5 \u2014 FAST Google Maps + ONYX",
-  "version": "3.6",
+  "version": "3.7",
   "description": "Fast Google Maps lead scraper built from live DOM probe selectors; captures name, phone, website, address, rating and syncs batches to ONYX.",
   "permissions": [
     "downloads",

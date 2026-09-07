@@ -214,3 +214,10 @@ input.wide:last-of-type { margin-bottom: 9px; }
   margin-bottom: 9px;
 }
 #codeBox:focus { outline: none; border-color: var(--accent); }
+
+.rating-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.research-results { display: grid; gap: 7px; max-height: 300px; overflow: auto; }
+.research-result { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; padding: 9px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.research-result b { font-size: 12px; }
+.research-result span { color: var(--dim); font-size: 11px; }
+.research-result button { grid-column: 2; grid-row: 1 / span 2; }
