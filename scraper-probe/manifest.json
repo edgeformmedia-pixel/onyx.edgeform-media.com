@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Scraper Probe — single lead DOM recorder",
+  "version": "1.0",
+  "description": "Opens one Google Maps business slowly and records the full DOM, every mutation, and every phone-extraction attempt so the missing-phone cause can be traced.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.google.com/maps*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.google.com/maps*"],
+      "js": ["probe.js"],
+      "css": ["panel.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Scraper Probe — use the panel on Google Maps"
+  }
+}

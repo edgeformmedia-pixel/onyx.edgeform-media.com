@@ -1,0 +1,96 @@
+#sp-panel {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  width: max-content;
+  max-width: min(720px, calc(100vw - 40px));
+  background: #101828;
+  color: #eef1f7;
+  border: 1px solid #26324a;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(6, 10, 20, .45);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+}
+
+#sp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px 10px;
+}
+
+#sp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5f6b85;
+  flex: none;
+}
+
+#sp-panel.live #sp-dot { background: #5b7bff; }
+#sp-panel.ok   #sp-dot { background: #3ec98a; }
+#sp-panel.warn #sp-dot { background: #e0a33c; }
+#sp-panel.err  #sp-dot { background: #f2607a; }
+
+#sp-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+#sp-clock {
+  font-size: 11px;
+  color: #8d99b3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+#sp-track { height: 2px; background: #1c2537; }
+#sp-fill  { height: 100%; width: 0; background: #5b7bff; transition: width .3s linear; }
+
+#sp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px 12px;
+}
+
+#sp-row label {
+  font-size: 11.5px;
+  color: #8d99b3;
+  white-space: nowrap;
+}
+
+#sp-row input[type="number"] {
+  width: 58px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid #2b3550;
+  background: #0b1220;
+  color: #eef1f7;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.sp-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sp-btn.primary { background: #3f5ce8; color: #fff; }
+.sp-btn.quiet   { background: transparent; border-color: #2b3550; color: #aab5cb; }
+.sp-btn:disabled { opacity: .5; cursor: default; }
+.sp-btn:focus-visible { outline: 2px solid #8fa6ff; outline-offset: 2px; }

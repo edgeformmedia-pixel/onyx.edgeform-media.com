@@ -1,0 +1,1988 @@
+<!doctype html><meta charset="utf-8"><title>Scraper probe — Test Laser Spa</title>
+<style>
+ :root{color-scheme:dark}
+ body{margin:0;padding:28px 32px 80px;background:#0b1018;color:#dbe2ef;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;max-width:1200px}
+ h1{font-size:19px;margin:0 0 4px;letter-spacing:.01em}
+ h2{font-size:14px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #222d44;color:#9db0d6}
+ .lede{color:#8d99b3;margin:0 0 22px}
+ .verdict{border:1px solid #2c3a58;border-left:3px solid #5b7bff;padding:14px 16px;border-radius:0 8px 8px 0;background:#111a2b}
+ .verdict .cause{font-size:15px;color:#8fa6ff;margin-bottom:6px}
+ details{margin:6px 0;border:1px solid #1c2537;border-radius:6px;background:#0f1626}
+ summary{cursor:pointer;padding:7px 10px;list-style:none}
+ summary::-webkit-details-marker{display:none}
+ summary:hover{background:#141d31}
+ details>*:not(summary){padding:0 12px 10px}
+ .t{color:#5b7bff;font-variant-numeric:tabular-nums}
+ .ph{color:#3ec98a}
+ .rev{color:#e0a33c}
+ .muted{color:#6b7794}
+ pre{white-space:pre-wrap;word-break:break-all;background:#080d16;border:1px solid #1a2233;border-radius:5px;padding:10px;max-height:520px;overflow:auto;font-size:11.5px;color:#a9b6cf}
+ table{border-collapse:collapse;width:100%;font-size:11.5px;margin:8px 0}
+ th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #18202f;vertical-align:top}
+ th{color:#6b7794;font-weight:500}
+ tr.hit td{color:#8fe0b8}
+ tr.miss td{color:#7c869c}
+ tr.phonehit td{background:#1b2436;color:#ffd9a0}
+ .kv div{padding:2px 0}
+ .kv b{color:#6b7794;font-weight:500;display:inline-block;min-width:96px}
+</style>
+<h1>Scraper probe — Test Laser Spa</h1>
+<p class="lede">2026-09-07T04:13:20.231Z · https://www.google.com/maps/search/laser+hair+removal</p>
+
+<div class="verdict">
+  <div class="cause">phone-arrives-late</div>
+  <div>The phone button exists but rendered late. waitForDetail() gives up before it lands.</div>
+  <div style="margin-top:8px">production selector returned: <b>(305) 555-0142</b> · best phone found by any strategy: <b>(305) 555-0142</b></div>
+  <div style="margin-top:8px" class="muted">first sighting per strategy: {"n1":{"t":439,"value":"Test Laser Spa"},"a1":{"t":1073,"value":"123 Test St, Miami, FL 33101"},"a2":{"t":1073,"value":"123 Test St, Miami, FL 33101"},"p1":{"t":2368,"value":"(305) 555-0142"},"p2":{"t":2368,"value":"(305) 555-0142"},"p3":{"t":2368,"value":"(305) 555-0142"},"p4":{"t":2368,"value":"(305) 555-0142"},"p7":{"t":2368,"value":"(305) 555-0142"}}</div>
+</div>
+
+<h2>Target</h2>
+<pre>{
+  "requestedIndex": 1,
+  "usedIndex": 1,
+  "totalCardsVisible": 2,
+  "name": "Test Laser Spa",
+  "href": "https://www.google.com/maps/place/Test+Laser+Spa/data=1",
+  "cardHtml": "&lt;a class=\"hfpxzc\" href=\"https://www.google.com/maps/place/Test+Laser+Spa/data=1\" aria-label=\"Test Laser Spa\"&gt;&lt;/a&gt;",
+  "cardCssPath": "body &gt; div &gt; div &gt; a.hfpxzc:nth-of-type(1)"
+}</pre>
+
+<h2>Timeline — every step in order (20 events)</h2>
+<details class="step">
+        <summary><span class="t">17 ms</span> <span class="ph">pre-click</span> State before the card was clicked. <span class="muted">heading: — · region: NO</span> <span class="rev">DOM rev #0</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b>  (matches card: false)</div>
+            <div><b>info region</b> NOT FOUND · matches heading: false · html length: 0</div>
+            <div><b>pane</b> body &gt; div · html length: 279</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="miss">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (0)</summary><pre>[]</pre></details>
+          <details><summary>all [data-item-id] present (0)</summary><pre>[]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">0 ms</span> <span class="ph">click</span> Clicked result 1: Test Laser Spa</summary>
+        <p class="muted">no state captured for this event</p>
+      </details><details class="step">
+        <summary><span class="t">439 ms</span> <span class="ph">tick</span> tick 1 <span class="muted">heading: Test Laser Spa · region: NO</span> <span class="rev">DOM rev #1</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> NOT FOUND · matches heading: false · html length: 0</div>
+            <div><b>pane</b> body &gt; div · html length: 317</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="miss">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="miss">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (0)</summary><pre>[]</pre></details>
+          <details><summary>all [data-item-id] present (0)</summary><pre>[]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">753 ms</span> <span class="ph">tick</span> tick 2 <span class="muted">heading: Test Laser Spa · region: NO</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> NOT FOUND · matches heading: false · html length: 0</div>
+            <div><b>pane</b> body &gt; div · html length: 317</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="miss">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="miss">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (0)</summary><pre>[]</pre></details>
+          <details><summary>all [data-item-id] present (0)</summary><pre>[]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">1073 ms</span> <span class="ph">tick</span> tick 3 <span class="muted">heading: Test Laser Spa · region: yes</span> <span class="rev">DOM rev #2</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 160</div>
+            <div><b>pane</b> body &gt; div · html length: 477</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="miss">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 1,
+    "htmlLength": 160
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (1)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">1395 ms</span> <span class="ph">tick</span> tick 4 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 160</div>
+            <div><b>pane</b> body &gt; div · html length: 477</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="miss">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 1,
+    "htmlLength": 160
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (1)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">1711 ms</span> <span class="ph">tick</span> tick 5 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 160</div>
+            <div><b>pane</b> body &gt; div · html length: 477</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="miss">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 1,
+    "htmlLength": 160
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (1)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">2037 ms</span> <span class="ph">tick</span> tick 6 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 160</div>
+            <div><b>pane</b> body &gt; div · html length: 477</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="miss">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 1,
+    "htmlLength": 160
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (1)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">2368 ms</span> <span class="ph">tick</span> tick 7 <span class="muted">heading: Test Laser Spa · region: yes</span> <span class="rev">DOM rev #3</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">2368 ms</span> <span class="ph">note</span> First moment any strategy saw a phone.</summary>
+        <p class="muted">no state captured for this event</p>
+      </details><details class="step">
+        <summary><span class="t">2693 ms</span> <span class="ph">tick</span> tick 8 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">3004 ms</span> <span class="ph">tick</span> tick 9 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">3319 ms</span> <span class="ph">tick</span> tick 10 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">3633 ms</span> <span class="ph">tick</span> tick 11 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">3961 ms</span> <span class="ph">tick</span> tick 12 <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">3961 ms</span> <span class="ph">note</span> Stopping early: phone found and the pane has been quiet.</summary>
+        <p class="muted">no state captured for this event</p>
+      </details><details class="step">
+        <summary><span class="t">3968 ms</span> <span class="ph">scroll-start</span> Scrolling the detail pane in steps.</summary>
+        <p class="muted">no state captured for this event</p>
+      </details><details class="step">
+        <summary><span class="t">4077 ms</span> <span class="ph">scroll</span> scroll step 1/2 to 0px <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">4186 ms</span> <span class="ph">scroll</span> scroll step 2/2 to 0px <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details><details class="step">
+        <summary><span class="t">4702 ms</span> <span class="ph">final</span> Final state. <span class="muted">heading: Test Laser Spa · region: yes</span></summary>
+        <div class="kv">
+            <div><b>url</b> https://www.google.com/maps/search/laser+hair+removal</div>
+            <div><b>heading</b> Test Laser Spa (matches card: true)</div>
+            <div><b>info region</b> Information for Test Laser Spa · matches heading: true · html length: 250</div>
+            <div><b>pane</b> body &gt; div · html length: 567</div>
+          </div>
+          <table class="strat"><thead><tr><th>id</th><th>field</th><th>scope</th><th></th><th>count</th><th>value</th><th>in region</th><th>path</th></tr></thead><tbody><tr class="hit">
+      <td>p1</td><td>phone</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p2</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p3</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="hit">
+      <td>p4</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p5</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>p6</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>p7</td><td>phone</td><td>document</td>
+      <td></td>
+      <td>1</td><td>(305) 555-0142</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)</td>
+    </tr><tr class="miss">
+      <td>p8</td><td>phone</td><td>detailPane</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="hit">
+      <td>n1</td><td>name</td><td>document</td>
+      <td>production</td>
+      <td>1</td><td>Test Laser Spa</td><td>outside</td>
+      <td>body &gt; div &gt; h1.DUwDvf</td>
+    </tr><tr class="hit">
+      <td>a1</td><td>address</td><td>infoRegion</td>
+      <td>production</td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="hit">
+      <td>a2</td><td>address</td><td>document</td>
+      <td></td>
+      <td>1</td><td>123 Test St, Miami, FL 33101</td><td>in region</td>
+      <td>body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)</td>
+    </tr><tr class="miss">
+      <td>w1</td><td>website</td><td>infoRegion</td>
+      <td>production</td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr><tr class="miss">
+      <td>w2</td><td>website</td><td>document</td>
+      <td></td>
+      <td>0</td><td></td><td></td>
+      <td></td>
+    </tr></tbody></table>
+          <details><summary>all div[role=region] present (1)</summary><pre>[
+  {
+    "ariaLabel": "Information for Test Laser Spa",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2)",
+    "childCount": 2,
+    "htmlLength": 250
+  }
+]</pre></details>
+          <details><summary>all [data-item-id] present (2)</summary><pre>[
+  {
+    "dataItemId": "address",
+    "tag": "BUTTON",
+    "ariaLabel": "Address: 123 Test St, Miami, FL 33101",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(1)"
+  },
+  {
+    "dataItemId": "phone:tel:+13055550142",
+    "tag": "BUTTON",
+    "ariaLabel": "Phone: (305) 555-0142",
+    "text": "",
+    "cssPath": "body &gt; div &gt; div:nth-of-type(2) &gt; button:nth-of-type(2)"
+  }
+]</pre></details>
+          <details><summary>matched elements, full outerHTML</summary><pre>[
+  {
+    "id": "p1",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p2",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p3",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p4",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "p7",
+    "outerHTML": "&lt;button data-item-id=\"phone:tel:+13055550142\" aria-label=\"Phone: (305) 555-0142\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "n1",
+    "outerHTML": "&lt;h1 class=\"DUwDvf\"&gt;Test Laser Spa&lt;/h1&gt;"
+  },
+  {
+    "id": "a1",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  },
+  {
+    "id": "a2",
+    "outerHTML": "&lt;button data-item-id=\"address\" aria-label=\"Address: 123 Test St, Miami, FL 33101\"&gt;&lt;/button&gt;"
+  }
+]</pre></details>
+      </details>
+
+<h2>DOM revisions of the detail pane (4)</h2>
+<p class="muted">A new revision is written only when the pane markup actually changed, so reading these top to bottom shows exactly how the panel assembled itself.</p>
+<details class="rev-block">
+      <summary><span class="t">16 ms</span> DOM revision #0 · pre-click · 279 chars before click</summary>
+      <div class="muted">body &gt; div</div>
+      <pre>&lt;div role="main"&gt;
+  &lt;div role="feed"&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Test+Laser+Spa/data=1" aria-label="Test Laser Spa"&gt;&lt;/a&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Other+Spa/data=2" aria-label="Other Spa"&gt;&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+    </details><details class="rev-block">
+      <summary><span class="t">438 ms</span> DOM revision #1 · tick · 317 chars tick 1</summary>
+      <div class="muted">body &gt; div</div>
+      <pre>&lt;div role="main"&gt;
+  &lt;div role="feed"&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Test+Laser+Spa/data=1" aria-label="Test Laser Spa"&gt;&lt;/a&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Other+Spa/data=2" aria-label="Other Spa"&gt;&lt;/a&gt;
+  &lt;/div&gt;
+&lt;h1 class="DUwDvf"&gt;Test Laser Spa&lt;/h1&gt;&lt;/div&gt;</pre>
+    </details><details class="rev-block">
+      <summary><span class="t">1073 ms</span> DOM revision #2 · tick · 477 chars tick 3</summary>
+      <div class="muted">body &gt; div</div>
+      <pre>&lt;div role="main"&gt;
+  &lt;div role="feed"&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Test+Laser+Spa/data=1" aria-label="Test Laser Spa"&gt;&lt;/a&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Other+Spa/data=2" aria-label="Other Spa"&gt;&lt;/a&gt;
+  &lt;/div&gt;
+&lt;h1 class="DUwDvf"&gt;Test Laser Spa&lt;/h1&gt;&lt;div role="region" aria-label="Information for Test Laser Spa"&gt;&lt;button data-item-id="address" aria-label="Address: 123 Test St, Miami, FL 33101"&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;</pre>
+    </details><details class="rev-block">
+      <summary><span class="t">2368 ms</span> DOM revision #3 · tick · 567 chars tick 7</summary>
+      <div class="muted">body &gt; div</div>
+      <pre>&lt;div role="main"&gt;
+  &lt;div role="feed"&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Test+Laser+Spa/data=1" aria-label="Test Laser Spa"&gt;&lt;/a&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Other+Spa/data=2" aria-label="Other Spa"&gt;&lt;/a&gt;
+  &lt;/div&gt;
+&lt;h1 class="DUwDvf"&gt;Test Laser Spa&lt;/h1&gt;&lt;div role="region" aria-label="Information for Test Laser Spa"&gt;&lt;button data-item-id="address" aria-label="Address: 123 Test St, Miami, FL 33101"&gt;&lt;/button&gt;&lt;button data-item-id="phone:tel:+13055550142" aria-label="Phone: (305) 555-0142"&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;</pre>
+    </details>
+
+<h2>Mutation log (3)</h2>
+<p class="muted">Rows highlighted amber contain a phone-shaped string in the added markup.</p>
+<table><thead><tr><th>ms</th><th>type</th><th>+/-</th><th>attr</th><th>target</th><th>detail</th></tr></thead><tbody><tr class="">
+      <td>1</td><td>childList</td><td>1/0</td>
+      <td></td><td>body &gt; div</td>
+      <td>Test Laser Spa</td>
+    </tr><tr class="">
+      <td>904</td><td>childList</td><td>1/0</td>
+      <td></td><td>body &gt; div</td>
+      <td>Information for Test Laser Spa</td>
+    </tr><tr class="phonehit">
+      <td>2203</td><td>childList</td><td>1/0</td>
+      <td></td><td>body &gt; div &gt; div:nth-of-type(2)</td>
+      <td>phone:tel:+13055550142</td>
+    </tr></tbody></table>
+
+<h2>Full document.body before the click</h2>
+<details><summary>294 chars</summary><pre>&lt;body&gt;
+&lt;div role="main"&gt;
+  &lt;div role="feed"&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Test+Laser+Spa/data=1" aria-label="Test Laser Spa"&gt;&lt;/a&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Other+Spa/data=2" aria-label="Other Spa"&gt;&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;/body&gt;</pre></details>
+
+<h2>Full document.body at the end</h2>
+<details><summary>582 chars</summary><pre>&lt;body&gt;
+&lt;div role="main"&gt;
+  &lt;div role="feed"&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Test+Laser+Spa/data=1" aria-label="Test Laser Spa"&gt;&lt;/a&gt;
+    &lt;a class="hfpxzc" href="https://www.google.com/maps/place/Other+Spa/data=2" aria-label="Other Spa"&gt;&lt;/a&gt;
+  &lt;/div&gt;
+&lt;h1 class="DUwDvf"&gt;Test Laser Spa&lt;/h1&gt;&lt;div role="region" aria-label="Information for Test Laser Spa"&gt;&lt;button data-item-id="address" aria-label="Address: 123 Test St, Miami, FL 33101"&gt;&lt;/button&gt;&lt;button data-item-id="phone:tel:+13055550142" aria-label="Phone: (305) 555-0142"&gt;&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/body&gt;</pre></details>
