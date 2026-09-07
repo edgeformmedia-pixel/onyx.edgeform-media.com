@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════
-// LeadHunter v3.5 — FAST Google Maps scraper + ONYX sync
+// LeadHunter v4 — complete, one-at-a-time Google Maps collection + ONYX sync
 // Built from a live DOM probe of the current Google Maps UI.
 //
 // Fast path:
@@ -12,9 +12,9 @@
 //   rating:    div.F7nice
 //   category:  button.DkEaL
 //
-// No multi-second fixed sleeps per business. It waits only for the
-// expected heading + detail fields, retries a missed SPA click quickly,
-// and batches Sheet writes per search.
+// Each result is opened and verified by business name. The scraper waits for
+// late detail rows, hydrates the detail pane with a slow scroll, then records
+// every structured Maps row before it advances to the next business.
 // ══════════════════════════════════════════════════════════════
 
 (function () {
@@ -30,7 +30,8 @@
   const txt = el => (el ? (el.textContent || '').replace(/\s+/g,' ').trim() : '');
   const PHONE_RX = /(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
   const CARD_SELECTOR='a.hfpxzc[href*="/maps/place/"]';
-  const DETAIL_COOLDOWN_MS=850;
+  const DETAIL_TIMEOUT_MS=15000;
+  const DETAIL_COOLDOWN_MS=700;
 
   let PANEL, STATUS_EL, META_EL, FILL_EL, TRACK_EL, START_BTN, STOP_BTN, SCAN_BTN, PROBE_BTN;
   let stepGuard=false;
@@ -119,8 +120,15 @@
   }
 
   function placeKey(href) {
-    try { const u=new URL(href,location.href); return u.pathname; }
+    try { const u=new URL(href,location.href); return isPlaceUrl(u.href) ? u.pathname : ''; }
     catch(e){ return String(href||'').split('?')[0]; }
+  }
+
+  function isPlaceUrl(href) {
+    try {
+      const u=new URL(href,location.href);
+      return /(^|\.)google\.com$/i.test(u.hostname) && /^\/maps\/place\//i.test(u.pathname);
+    } catch(e){ return false; }
   }
 
   function feedEl() {
@@ -134,10 +142,10 @@
 
   function currentCardNodes() {
     const feed=feedEl();
-    const root=feed || document;
-    let nodes=[...root.querySelectorAll(CARD_SELECTOR)];
-    if(!nodes.length && !feed) nodes=[...document.querySelectorAll('a[href*="/maps/place/"][aria-label]')];
-    return nodes;
+    if(!feed) return [];
+    let nodes=[...feed.querySelectorAll(CARD_SELECTOR)];
+    if(!nodes.length) nodes=[...feed.querySelectorAll('a[href][aria-label]')].filter(a=>isPlaceUrl(a.href||a.getAttribute('href')));
+    return nodes.filter(a=>isPlaceUrl(a.href||a.getAttribute('href')) && cleanCardName(a.getAttribute('aria-label')||txt(a)));
   }
 
   function resultAnchors() {
@@ -147,7 +155,7 @@
     for(const a of currentCardNodes()){
       const href=a.href || a.getAttribute('href') || '';
       const key=placeKey(href);
-      if(!href || !key || seen.has(key)) continue;
+      if(!isPlaceUrl(href) || !key || seen.has(key)) continue;
       seen.add(key);
       out.push({href,key,name:cleanCardName(a.getAttribute('aria-label')||txt(a)),scrollTop:top});
     }
@@ -237,6 +245,38 @@
     return document;
   }
 
+  function detailScroller(expectedName) {
+    const panel=detailPanel(expectedName);
+    const h=document.querySelector('h1.DUwDvf');
+    let el=h || panel;
+    for(let i=0;el && el!==document.body && i<12;i++,el=el.parentElement){
+      try{
+        const style=getComputedStyle(el);
+        if(/auto|scroll/.test(style.overflowY) && el.scrollHeight>el.clientHeight+40) return el;
+      }catch(e){}
+    }
+    return [...panel.querySelectorAll('div')].find(x=>{
+      try{return /auto|scroll/.test(getComputedStyle(x).overflowY) && x.scrollHeight>x.clientHeight+40;}
+      catch(e){return false;}
+    }) || null;
+  }
+
+  async function hydrateDetail(expectedName, gen) {
+    const scroller=detailScroller(expectedName);
+    if(!scroller) return;
+    const oldTop=scroller.scrollTop;
+    const max=Math.max(0,scroller.scrollHeight-scroller.clientHeight);
+    for(let i=0;i<=4;i++){
+      if(!await liveRun(gen)) return;
+      scroller.scrollTop=Math.round(max*(i/4));
+      scroller.dispatchEvent(new Event('scroll',{bubbles:true}));
+      await sleep(220);
+    }
+    scroller.scrollTop=Math.min(oldTop,Math.max(0,scroller.scrollHeight-scroller.clientHeight));
+    scroller.dispatchEvent(new Event('scroll',{bubbles:true}));
+    await sleep(220);
+  }
+
   function websiteFromSponsoredPanel(expectedName) {
     const panel=detailPanel(expectedName);
     const candidates=[...panel.querySelectorAll('a.bm892c[aria-label], .BK5vjc')];
@@ -254,15 +294,16 @@
   }
 
   function readCoreFields(expectedName) {
-    const root=infoRegion(expectedName) || document;
+    const root=infoRegion(expectedName) || detailPanel(expectedName) || document;
     const addressEl=root.querySelector('button[data-item-id="address"],button[aria-label^="Address:"]');
-    // The probe showed both data-item-id="phone:" and phone:tel:+1..., so aria-label is the stable selector.
-    const phoneEl=root.querySelector('button[aria-label^="Phone:"],button[data-item-id^="phone:"]');
+    // Probe evidence: the button can arrive very late and the companion tel: link
+    // is a useful fallback on compact layouts.
+    const phoneEl=root.querySelector('button[aria-label^="Phone:"],button[data-item-id^="phone:"],a[href^="tel:"],[data-tooltip*="phone" i]');
     const webEl=root.querySelector('a[data-item-id="authority"][href],a[aria-label^="Website:"][href]');
 
     let phone='';
     if(phoneEl){
-      const raw=attrText(phoneEl).replace(/^Phone:\s*/i,'');
+      const raw=((phoneEl.getAttribute('href')||'').replace(/^tel:/i,'') || attrText(phoneEl)).replace(/^Phone:\s*/i,'');
       const pm=raw.match(PHONE_RX); phone=normalizePhone(pm?pm[0]:raw);
     }
     const address=parseAddress(attrText(addressEl));
@@ -270,21 +311,44 @@
     return {address,phone,website,addressEl,phoneEl,webEl};
   }
 
-  async function waitForDetail(expectedName, timeout=1800) {
+  async function waitForDetail(expectedName, timeout=DETAIL_TIMEOUT_MS, requirePhone=true) {
     const end=Date.now()+timeout;
-    let firstUseful=0, last=null;
+    let last=null, signature='', stableSince=0;
     while(Date.now()<end){
-      if(!nameMatches(detailName(),expectedName)){ await sleep(40); continue; }
+      if(!nameMatches(detailName(),expectedName)){ await sleep(100); continue; }
       const fields=readCoreFields(expectedName);
       last=fields;
-      const useful=[!!fields.phone,!!fields.website,!!fields.address.full].filter(Boolean).length;
-      if(fields.phone && fields.website && fields.address.full) return fields;
-      if(useful>=2 && !firstUseful) firstUseful=Date.now();
-      // Give a partially-loaded panel a short grace period for the final field.
-      if(firstUseful && Date.now()-firstUseful>=520) return fields;
-      await sleep(40);
+      const root=infoRegion(expectedName) || detailPanel(expectedName);
+      const next=[fields.phone,fields.website,fields.address.full,root.querySelectorAll('[data-item-id]').length,(root.outerHTML||'').length].join('|');
+      if(next!==signature){signature=next;stableSince=Date.now();}
+      const stableFor=Date.now()-stableSince;
+      if(fields.phone && fields.address.full && stableFor>=700) return fields;
+      if(!requirePhone && (fields.address.full || fields.website) && stableFor>=1800) return fields;
+      await sleep(100);
     }
     return last || readCoreFields(expectedName);
+  }
+
+  function labeledValue(root, selectors, prefix) {
+    const el=root.querySelector(selectors);
+    return el ? attrText(el).replace(prefix||/^$/,'').trim() : '';
+  }
+
+  function collectMapDetails(panel) {
+    const seen=new Set(), rows=[];
+    for(const el of panel.querySelectorAll('[data-item-id],button[aria-label],a[aria-label],[data-tooltip]')){
+      const dataItemId=el.getAttribute('data-item-id')||'';
+      const ariaLabel=el.getAttribute('aria-label')||'';
+      const dataTooltip=el.getAttribute('data-tooltip')||'';
+      const href=el.getAttribute('href')||'';
+      const value=txt(el).slice(0,1000);
+      const key=[dataItemId,ariaLabel,dataTooltip,href,value].join('|');
+      if(!key.replace(/\|/g,'') || seen.has(key)) continue;
+      seen.add(key);
+      rows.push({order:rows.length,tag:el.tagName.toLowerCase(),dataItemId,ariaLabel,dataTooltip,href,value});
+      if(rows.length>=180) break;
+    }
+    return rows;
   }
 
   function findAnchor(place) {
@@ -339,13 +403,29 @@
     }
 
     const openStatus=txt(panel.querySelector('span.ZDu9vd'));
+    const hours=labeledValue(panel,'[data-item-id="oh"],[aria-label^="Hours:" i]',/^Hours:\s*/i);
+    const plusCode=labeledValue(panel,'[data-item-id*="oloc" i],[aria-label^="Plus code:" i]',/^Plus code:\s*/i);
+    const locatedIn=labeledValue(panel,'[data-item-id*="locatedin" i],[aria-label^="Located in:" i]',/^Located in:\s*/i);
+    const bodyText=txt(panel);
+    const yearsMatch=bodyText.match(/\b(\d+\+?\s+years?\s+in\s+business)\b/i);
+    const descriptionEl=panel.querySelector('.PYvSYb,.WeS02d,[data-item-id="description"]');
+    const bookingEl=panel.querySelector('a[data-item-id*="appointment" i][href],a[aria-label*="appointment" i][href],a[aria-label*="book" i][href]');
+    const menuEl=panel.querySelector('a[data-item-id*="menu" i][href],a[aria-label*="menu" i][href]');
+    const priceMatch=bodyText.match(/(?:^|\s)(\${1,4})(?:\s|$)/);
+    const coordinates=location.href.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    const placeId=(String(placeHref||location.href).match(/!1s([^!/?]+)/)||[])[1]||'';
+    const mapDetails=collectMapDetails(panel);
     const ch=LH3.chainInfo(name);
     const mapsUrl=placeHref || location.href;
     const destination=[name,address.full].filter(Boolean).join(', ');
     return {
-      name, category, phone, website,
+      name, category, phone, website, fullAddress:address.full,
       street:address.street, city:address.city, state:address.state, zip:address.zip,
-      rating, reviewCount, yearsInBusiness:'', openStatus,
+      rating, reviewCount, yearsInBusiness:yearsMatch?yearsMatch[1]:'', openStatus, hours, plusCode, locatedIn,
+      description:txt(descriptionEl), priceLevel:priceMatch?priceMatch[1]:'',
+      bookingUrl:bookingEl?cleanWebsite(bookingEl.href):'', menuUrl:menuEl?cleanWebsite(menuEl.href):'',
+      latitude:coordinates?Number(coordinates[1]):'', longitude:coordinates?Number(coordinates[2]):'', googlePlaceId:placeId,
+      mapDetails,
       mapsUrl,
       directionsUrl:'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(destination),
       googleSearchUrl:'https://www.google.com/search?q='+encodeURIComponent([name,address.city,address.state].filter(Boolean).join(' ')),
@@ -355,50 +435,97 @@
     };
   }
 
-  async function openAndParse(place, ctx, gen) {
+  async function openAndParse(place, ctx, gen, settings) {
     const expected=cleanCardName(place.name);
+    const requirePhone=settings ? settings.requirePhone!==false : true;
 
     // If Maps already has this exact place open, scrape immediately.
     if(nameMatches(detailName(),expected)){
-      const ready=await waitForDetail(expected,900);
-      return parseDetail(expected,ctx,place.href,ready);
+      let ready=await waitForDetail(expected,3000,requirePhone);
+      await hydrateDetail(expected,gen);
+      if(requirePhone && !ready.phone) ready=await waitForDetail(expected,12000,true);
+      else await sleep(700);
+      if(!await liveRun(gen)) return null;
+      return parseDetail(expected,ctx,place.href,readCoreFields(expected));
     }
 
     let heading='';
-    for(let attempt=0; attempt<3 && !heading; attempt++){
+    for(let attempt=0; attempt<2 && !heading; attempt++){
       if(!await liveRun(gen)) return null;
       const a=await locateAnchor(place);
       if(!a) continue;
       a.scrollIntoView({block:'center',inline:'nearest'});
-      await sleep(35);
+      await sleep(120);
       a.click();
-      heading=await waitFor(()=>nameMatches(detailName(),expected) ? detailName() : null, attempt===0?850:1100,40);
-      if(!heading) await sleep(120+attempt*80);
+      heading=await waitFor(()=>nameMatches(detailName(),expected) ? detailName() : null,7500,100);
+      if(!heading) await sleep(250);
     }
     if(!heading){
-      console.warn('[LeadHunter3.5] Maps card did not open quickly; skipping:', expected);
+      console.warn('[LeadHunter4] Maps card did not open after the complete wait window; skipping:', expected);
       return null;
     }
 
-    const ready=await waitForDetail(expected,1800);
+    let ready=await waitForDetail(expected,3000,requirePhone);
+    await hydrateDetail(expected,gen);
+    if(requirePhone && !ready.phone) ready=await waitForDetail(expected,12000,true);
+    else await sleep(700);
     if(!await liveRun(gen)) return null;
-    const rec=parseDetail(expected,ctx,place.href,ready);
+    const rec=parseDetail(expected,ctx,place.href,readCoreFields(expected));
     await sleep(DETAIL_COOLDOWN_MS);
     return rec;
+  }
+
+  async function saveCompletedLead(lead, settings) {
+    if(settings.skipChains && LH3.isChain(lead.name)) return {saved:false,reason:'chain'};
+    if(settings.requirePhone && !lead.phone) return {saved:false,reason:'no phone'};
+    if(settings.badReviewMode && !Number(lead.rating)) return {saved:false,reason:'no rating'};
+    if(settings.badReviewMode && (Number(lead.rating)<Number(settings.minRating||0) || Number(lead.rating)>Number(settings.maxRating||5))) return {saved:false,reason:'outside rating range'};
+    if(settings.badReviewMode && settings.laserOnly && !/laser|hair removal/i.test([lead.searchTerm,lead.category,lead.name].join(' '))) return {saved:false,reason:'outside laser context'};
+
+    if(settings.badReviewMode){
+      lead.reviewOpportunity=Number(lead.rating)<=1?'Urgent: 0–1 star public rating':Number(lead.rating)<=2?'Priority: 1–2 star public rating':'';
+      lead.reviewResearchStatus=lead.reviewOpportunity?'Open Google Maps reviews to validate laser-hair-removal complaint.':'';
+    }
+
+    const key=LH3.leadKey(lead);
+    const leads=await get(K_LEADS,[]);
+    if(leads.some(x=>LH3.leadKey(x)===key)) return {saved:false,reason:'duplicate'};
+    if(settings.skipSeen && new Set(await get(K_SEEN,[])).has(key)) return {saved:false,reason:'scraped before'};
+
+    leads.push(lead);
+    await set({[K_LEADS]:leads});
+    const history=await get(K_HISTORY,[]), known=new Set(history.map(LH3.leadKey));
+    if(!known.has(key)){history.push(lead);await set({[K_HISTORY]:history.slice(-5000)});}
+
+    let synced='', needsSync=false;
+    if(settings.syncToSheet){
+      const response=await pushToSheet([lead]);
+      if(response) synced=`ONYX +${response.added}`;
+      else needsSync=true;
+    }
+    Object.defineProperty(lead,'__savedDuringCollection',{value:true,enumerable:false});
+    Object.defineProperty(lead,'__needsOnyxSync',{value:needsSync,enumerable:false});
+    return {saved:true,synced,needsSync};
   }
 
   async function scrapeMapsQuery(ctx, target, s, gen) {
     status(`Collecting up to ${target} Maps businesses for “${ctx.term}” — ${ctx.city}…`);
     const places=await collectPlaces(target,gen);
     if(!places.length) return [];
-    status(`Found ${places.length} businesses — reading phone + website…`,'ok');
+    status(`Found ${places.length} businesses — opening every lead and collecting all details…`,'ok');
 
     const rows=[];
     for(let i=0;i<places.length;i++){
       if(!await liveRun(gen)) break;
-      status(`Fast scrape ${i+1}/${places.length}: ${places[i].name || 'business'}…`);
-      const rec=await openAndParse(places[i],ctx,gen);
-      if(rec) rows.push(rec);
+      status(`Complete lead ${i+1}/${places.length}: ${places[i].name || 'business'}…`);
+      const rec=await openAndParse(places[i],ctx,gen,s);
+      if(rec){
+        rows.push(rec);
+        const saved=await saveCompletedLead(rec,s);
+        status(saved.saved
+          ? `Saved ${i+1}/${places.length}: ${rec.name}${saved.synced?' · '+saved.synced:''}`
+          : `Collected ${i+1}/${places.length}: ${rec.name} · not saved (${saved.reason})`, saved.saved&&!saved.needsSync?'ok':'warn');
+      }
     }
     return rows;
   }
@@ -415,7 +542,7 @@
     for(const city of cities) for(const term of terms) plan.push({term,city,page:1,target:perQuery});
     const run={active:true,gen:Date.now(),plan,idx:0,total:0,limit:Math.max(1,s.limit||200),settings:s,startedAt:new Date().toISOString()};
     await set({[K_RUN]:run,[K_LEADS]:[]});
-    status(`Starting FAST Maps sweep — ${terms.length} terms × ${cities.length} cities`, 'ok');
+    status(`Starting complete Maps collection — ${terms.length} terms × ${cities.length} cities`, 'ok');
     location.href=mapsSearchUrl(plan[0].term,plan[0].city);
     return {ok:true,steps:plan.length};
   }
@@ -440,6 +567,7 @@
       let added=0; const kept=[]; const skip={chain:0,nophone:0,dupe:0,seen:0};
       for(const b of rows){
         if(run.total+added>=run.limit) break;
+        if(b.__savedDuringCollection){added++;if(b.__needsOnyxSync)kept.push(b);continue;}
         if(s.skipChains && LH3.isChain(b.name)){skip.chain++;continue;}
         if(s.requirePhone && !b.phone){skip.nophone++;continue;}
         if(s.badReviewMode&&!Number(b.rating)){skip.unrated=(skip.unrated||0)+1;continue;}
@@ -459,7 +587,7 @@
       status(`“${cur.term}” ${cur.city} — kept ${added}/${rows.length}`+synced+(added?'':` · ${why(skip,rows.length)}`), added?'ok':'warn');
       return advance(run,added);
     }catch(e){
-      console.error('[LeadHunter3.5]',e);
+      console.error('[LeadHunter4]',e);
       status('Maps scrape error: '+(e.message||e),'err');
       const run=await get(K_RUN,null); if(run&&run.active) return advance(run,0);
     }finally{ stepGuard=false; }
@@ -472,7 +600,7 @@
     if(run.idx>=run.plan.length){await set({[K_RUN]:run}); return finish('Worked through every search');}
     await set({[K_RUN]:run}); render(run);
     const s=run.settings;
-    // Delay only BETWEEN searches. Per-business scraping is event-driven and fast.
+    // Delay only BETWEEN searches. Each business has its own completeness wait.
     const lo=Math.max(300,Number(s.minDelayMs)||900), hi=Math.max(lo,Number(s.maxDelayMs)||1500);
     const wait=Math.round(lo+Math.random()*(hi-lo));
     status(`Next Maps search in ${(wait/1000).toFixed(1)}s…`);
@@ -496,7 +624,7 @@
   }
 
   async function downloadCsv(leads){
-    const csv='\uFEFF'+LH3.buildCsv(leads), filename=LH3.csvFilename('leadhunter-maps-fast');
+    const csv='\uFEFF'+LH3.buildCsv(leads), filename=LH3.csvFilename('leadhunter-maps-complete');
     try{const r=await chrome.runtime.sendMessage({type:'LH3_DOWNLOAD',csv,filename}); if(r&&r.ok)return true; throw new Error(r&&r.error?r.error:'download blocked');}
     catch(e){status(`Couldn't save the file: ${e.message}. Use Export in the popup.`,'err');return false;}
   }
@@ -527,14 +655,11 @@
     const target=Math.min(Math.max(20,(Number(s.pagesPerQuery)||1)*20),Math.max(1,s.limit||20));
     const rows=await scrapeMapsQuery(ctx,target,s,fakeGen);
     temp.active=false;temp.gen=0;await set({[K_RUN]:temp});
-    const out=[],have=new Set(),seen=s.skipSeen?new Set(await get(K_SEEN,[])):new Set();
-    for(const b of rows){if(s.skipChains&&LH3.isChain(b.name))continue;if(s.requirePhone&&!b.phone)continue;if(s.badReviewMode&&(!Number(b.rating)||Number(b.rating)<Number(s.minRating||0)||Number(b.rating)>Number(s.maxRating||5)))continue;if(s.badReviewMode&&s.laserOnly&&!/laser|hair removal/i.test([b.searchTerm,b.category,b.name].join(' ')))continue;if(s.badReviewMode){b.reviewOpportunity=Number(b.rating)<=1?'Urgent: 0–1 star public rating':'Priority: low public rating';b.reviewResearchStatus='Open Google Maps reviews to validate laser-hair-removal complaint.';}const k=LH3.leadKey(b);if(have.has(k)||seen.has(k))continue;have.add(k);out.push(b);}
-    if(!out.length){status('No new businesses with phone numbers were found on this Maps search.','warn');return;}
-    await set({[K_LEADS]:out});
-    if(out.length){const history=await get(K_HISTORY,[]),known=new Set(history.map(LH3.leadKey));out.forEach(x=>{if(!known.has(LH3.leadKey(x))){known.add(LH3.leadKey(x));history.push(x);}});await set({[K_HISTORY]:history.slice(-5000)});}
-    let tail='';if(s.syncToSheet){const r=await pushToSheet(out,s);if(r)tail=` · sheet +${r.added}`;}if(s.downloadCsv!==false)await downloadCsv(out);
+    const out=rows.filter(b=>b.__savedDuringCollection);
+    if(!out.length){status('No new complete leads passed the current filters on this Maps search.','warn');return;}
+    if(s.downloadCsv!==false)await downloadCsv(out);
     const all=new Set(await get(K_SEEN,[]));out.forEach(l=>all.add(LH3.leadKey(l)));await set({[K_SEEN]:[...all]});
-    status(`Kept ${out.length} Maps businesses`+tail,'ok');
+    status(`Saved ${out.length} complete Maps leads to ONYX`,'ok');
   }
 
   // ── DOM PROBE ───────────────────────────────────────────────
@@ -750,9 +875,9 @@
     if(document.getElementById('lh3-panel'))return;css();PANEL=document.createElement('div');PANEL.id='lh3-panel';
     const head=document.createElement('div');head.id='lh3-head';const dot=document.createElement('span');dot.id='lh3-dot';STATUS_EL=document.createElement('div');STATUS_EL.id='lh3-status';STATUS_EL.textContent='Onyx Maps LeadHunter ready';META_EL=document.createElement('div');META_EL.id='lh3-meta';head.append(dot,STATUS_EL,META_EL);
     TRACK_EL=document.createElement('div');TRACK_EL.id='lh3-track';FILL_EL=document.createElement('div');FILL_EL.id='lh3-fill';TRACK_EL.appendChild(FILL_EL);
-    const row=document.createElement('div');row.id='lh3-row';START_BTN=document.createElement('button');START_BTN.className='lh3-btn primary';START_BTN.textContent='Start Maps sweep';START_BTN.addEventListener('click',async()=>{const r=await startRun();if(!r.ok)status(r.error,'warn');});SCAN_BTN=document.createElement('button');SCAN_BTN.className='lh3-btn quiet';SCAN_BTN.textContent='Scan this Maps search';SCAN_BTN.addEventListener('click',scanThisPage);PROBE_BTN=document.createElement('button');PROBE_BTN.className='lh3-btn quiet';PROBE_BTN.textContent='Probe DOM';PROBE_BTN.addEventListener('click',probeMaps);STOP_BTN=document.createElement('button');STOP_BTN.className='lh3-btn stop';STOP_BTN.textContent='Stop and download';STOP_BTN.hidden=true;STOP_BTN.addEventListener('click',()=>stopRun(true));row.append(START_BTN,SCAN_BTN,PROBE_BTN,STOP_BTN);PANEL.append(head,TRACK_EL,row);document.documentElement.appendChild(PANEL);
+    const row=document.createElement('div');row.id='lh3-row';START_BTN=document.createElement('button');START_BTN.className='lh3-btn primary';START_BTN.textContent='Collect complete leads';START_BTN.addEventListener('click',async()=>{const r=await startRun();if(!r.ok)status(r.error,'warn');});SCAN_BTN=document.createElement('button');SCAN_BTN.className='lh3-btn quiet';SCAN_BTN.textContent='Collect this Maps search';SCAN_BTN.addEventListener('click',scanThisPage);PROBE_BTN=document.createElement('button');PROBE_BTN.className='lh3-btn quiet';PROBE_BTN.textContent='Probe DOM';PROBE_BTN.addEventListener('click',probeMaps);STOP_BTN=document.createElement('button');STOP_BTN.className='lh3-btn stop';STOP_BTN.textContent='Stop and download';STOP_BTN.hidden=true;STOP_BTN.addEventListener('click',()=>stopRun(true));row.append(START_BTN,SCAN_BTN,PROBE_BTN,STOP_BTN);PANEL.append(head,TRACK_EL,row);document.documentElement.appendChild(PANEL);
   }
-  function status(msg,cls){if(STATUS_EL){STATUS_EL.textContent=msg;const running=PANEL.classList.contains('live');PANEL.className=cls==='ok'?'ok':cls==='warn'?'warn':cls==='err'?'err':'';if(running&&cls!=='err'&&cls!=='warn')PANEL.classList.add('live');}console.log('[LeadHunter3.5]',msg);}
+  function status(msg,cls){if(STATUS_EL){STATUS_EL.textContent=msg;const running=PANEL.classList.contains('live');PANEL.className=cls==='ok'?'ok':cls==='warn'?'warn':cls==='err'?'err':'';if(running&&cls!=='err'&&cls!=='warn')PANEL.classList.add('live');}console.log('[LeadHunter4]',msg);}
   function render(run){if(!PANEL)return;const on=!!(run&&run.active);START_BTN.hidden=on;SCAN_BTN.hidden=on;if(PROBE_BTN)PROBE_BTN.hidden=on;STOP_BTN.hidden=!on;TRACK_EL.style.display=on?'block':'none';PANEL.classList.toggle('live',on);if(on){META_EL.textContent=`${run.idx+1}/${run.plan.length} searches · ${run.total}/${run.limit} leads`;FILL_EL.style.width=Math.min(100,(run.total/run.limit)*100)+'%';}else{META_EL.textContent='';FILL_EL.style.width='0%';}}
 
   chrome.runtime.onMessage.addListener((msg,sender,reply)=>{

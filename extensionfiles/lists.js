@@ -78,8 +78,11 @@
   const isChain = name => chainInfo(name).isChain;
 
   const CSV_FIELDS = [
-    'name', 'category', 'phone', 'website', 'street', 'city', 'state', 'zip',
-    'rating', 'reviewCount', 'yearsInBusiness', 'openStatus',
+    'name', 'category', 'phone', 'website', 'fullAddress', 'street', 'city', 'state', 'zip',
+    'rating', 'reviewCount', 'yearsInBusiness', 'openStatus', 'hours', 'plusCode', 'locatedIn',
+    'description', 'priceLevel', 'bookingUrl', 'menuUrl',
+    'latitude', 'longitude', 'googlePlaceId',
+    'mapDetails',
     'mapsUrl', 'directionsUrl', 'googleSearchUrl',
     'isNationalChain', 'chainBrand', 'chainType', 'buyerType',
     'searchTerm', 'searchCity', 'page', 'stage', 'notes', 'scrapedAt'
@@ -87,7 +90,7 @@
 
   function csvCell(v) {
     if (v === null || v === undefined) return '';
-    const s = String(v);
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
     return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
