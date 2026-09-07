@@ -12,6 +12,24 @@
 
 const ALLOWED = /^(https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?|https:\/\/onyx-crm\.edgeformmedia\.workers\.dev\/?)$/;
 
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchWithRetry(url, options, attempts=3) {
+  let lastError;
+  for(let attempt=1;attempt<=attempts;attempt++){
+    try{
+      const response=await fetch(url,options);
+      if(response.status<500 || attempt===attempts)return response;
+      lastError=new Error(`Server replied ${response.status}`);
+    }catch(error){
+      lastError=error;
+      if(options.signal && options.signal.aborted)throw error;
+    }
+    await wait(500*attempt);
+  }
+  throw lastError || new Error('Network request failed.');
+}
+
 async function callSheet(url, payload, timeoutMs) {
   if (!ALLOWED.test(String(url || '').trim())) {
     return { ok: false, error: 'That does not look like an ONYX CRM or Apps Script URL.' };
@@ -21,15 +39,17 @@ async function callSheet(url, payload, timeoutMs) {
   const timer = setTimeout(() => ctrl.abort(), timeoutMs || 30000);
 
   try {
-    const res = await fetch(url.trim(), {
+    const res = await fetchWithRetry(url.trim(), {
       method: 'POST',
       // text/plain keeps this a "simple request". Even though the worker
       // isn't CORS-bound, Apps Script rejects an OPTIONS preflight outright,
       // so avoiding application/json keeps the redirect chain clean.
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8', 'Accept': 'application/json' },
       body: JSON.stringify(payload),
-      redirect: 'follow'          // Apps Script 302s to script.googleusercontent.com
-    });
+      redirect: 'follow',         // Apps Script 302s to script.googleusercontent.com
+      cache: 'no-store',
+      signal: ctrl.signal
+    }, 3);
 
     const text = await res.text();
     if (!res.ok) return { ok: false, error: `Sheet replied ${res.status}. ${short(text)}` };
@@ -47,7 +67,7 @@ async function callSheet(url, payload, timeoutMs) {
     return { ok: true, data };
   } catch (e) {
     if (e.name === 'AbortError') return { ok: false, error: 'Timed out waiting for the sheet.' };
-    return { ok: false, error: e.message || 'Network error reaching the sheet.' };
+    return { ok: false, error: `${e.message || 'Network error reaching ONYX.'} The extension retried three times.` };
   } finally {
     clearTimeout(timer);
   }

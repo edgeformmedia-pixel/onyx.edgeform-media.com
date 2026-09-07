@@ -1,4 +1,4 @@
-# ONYX LeadHunter v4.2
+# ONYX LeadHunter v4.3
 
 This Chrome extension collects Google Maps businesses one at a time and saves
 each completed lead to ONYX before opening the next result.
@@ -27,6 +27,8 @@ each completed lead to ONYX before opening the next result.
 - Saves each accepted lead locally and to ONYX immediately, before advancing.
 - Queues every unique business before upload and retries the queue every ten
   seconds until the Cloudflare database confirms it.
+- Retries each individual network request three times and keeps failed leads
+  queued across page reloads.
 - Uploads unique businesses even when Google does not publish a phone,
   website, rating, or another optional field.
 - Uses deduplication as the only upload gate. Phone, chain, rating, and

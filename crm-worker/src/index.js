@@ -1,10 +1,11 @@
 const STAGES = ['New Lead', 'Researching', 'Ready to Call', 'Contacted', 'Interested', 'Demo Booked', 'Proposal Sent', 'Won', 'Lost', 'Do Not Contact'];
 const SITE_URL = 'https://onyx.edgeform-media.com';
 const EMAIL_WORKER = 'https://email.edgeformmedia.workers.dev/';
-const CORS = { 'access-control-allow-origin': SITE_URL, 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type', 'content-type': 'application/json; charset=utf-8' };
+const CORS = { 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type, accept', 'content-type': 'application/json; charset=utf-8' };
 const indexed = ['name','category','phone','website','city','state','rating','reviewCount','isNationalChain','dmName','dmTitle','email','leadScore','stage','owner','nextActionDate','lastContacted','enrichedAt','needsHumanReview','scrapedAt'];
 
-function reply(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: CORS }); }
+function corsFor(request) { const origin=request.headers.get('origin')||''; const allowed=origin===SITE_URL||/^chrome-extension:\/\/[a-z]+$/i.test(origin)?origin:SITE_URL; return {...CORS,'access-control-allow-origin':allowed,'vary':'Origin'}; }
+function reply(body, status = 200, headers = {...CORS,'access-control-allow-origin':SITE_URL}) { return new Response(JSON.stringify(body), { status, headers }); }
 function text(v) { return String(v ?? '').trim(); }
 function now() { return new Date().toISOString(); }
 function id() { return crypto.randomUUID(); }
@@ -100,4 +101,4 @@ async function handle(env, b) {
   return {ok:false,error:'Unknown action: '+b.action};
 }
 
-export default { async fetch(request, env) { if(request.method==='OPTIONS')return new Response(null,{headers:CORS}); if(request.method==='GET')return reply({ok:true,service:'ONYX CRM'}); if(request.method!=='POST')return reply({ok:false,error:'Method not allowed.'},405); try { const b=await request.json(); return reply(await handle(env,b)); } catch(e) { console.error(JSON.stringify({event:'crm_error',message:e.message})); return reply({ok:false,error:'The CRM could not complete that request.'},500); } } };
+export default { async fetch(request, env) { const headers=corsFor(request); if(request.method==='OPTIONS')return new Response(null,{headers}); if(request.method==='GET')return reply({ok:true,service:'ONYX CRM'},200,headers); if(request.method!=='POST')return reply({ok:false,error:'Method not allowed.'},405,headers); try { const b=await request.json(); return reply(await handle(env,b),200,headers); } catch(e) { console.error(JSON.stringify({event:'crm_error',message:e.message})); return reply({ok:false,error:'The CRM could not complete that request.'},500,headers); } } };
