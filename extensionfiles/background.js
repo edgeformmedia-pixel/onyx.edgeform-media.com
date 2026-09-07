@@ -10,7 +10,7 @@
 // nothing for you to configure on the Apps Script side.
 // ══════════════════════════════════════════════════════════════
 
-const ALLOWED = /^(https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?|https:\/\/onyx-crm\.edgeformmedia\.workers\.dev\/?$/);
+const ALLOWED = /^(https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?|https:\/\/onyx-crm\.edgeformmedia\.workers\.dev\/?)$/;
 
 async function callSheet(url, payload, timeoutMs) {
   if (!ALLOWED.test(String(url || '').trim())) {
