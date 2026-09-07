@@ -10,7 +10,7 @@
     cities: ['Miami FL'],
     limit: 200,
     pagesPerQuery: 3,      // Google serves 20 local results per page
-    skipSeen: true,
+    skipSeen: false,
     skipChains: false,   // off on purpose — chains get labelled instead
     requirePhone: true,
     minDelayMs: 900,       // pause BETWEEN search queries; business clicks use event-driven waits
@@ -18,6 +18,7 @@
     minRating: 0,
     maxRating: 2,
     laserOnly: true,
+    badReviewMode: false,
     sheetUrl: 'https://onyx-crm.edgeformmedia.workers.dev/',
     sheetSecret: 'test',
     syncToSheet: true,

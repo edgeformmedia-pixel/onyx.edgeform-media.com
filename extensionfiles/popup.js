@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const LH3 = window.LH3, K_SET='lh3_settings', K_LEADS='lh3_leads', K_SEEN='lh3_seen', K_RUN='lh3_run';
+  const LH3 = window.LH3, K_SET='lh3_settings', K_LEADS='lh3_leads', K_HISTORY='lh3_research_history', K_SEEN='lh3_seen', K_RUN='lh3_run';
   const $=id=>document.getElementById(id), get=async(k,d)=>{const x=await chrome.storage.local.get(k);return x[k]===undefined?d:x[k];};
   let S;
   const save=()=>chrome.storage.local.set({[K_SET]:S});

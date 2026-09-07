@@ -24,13 +24,13 @@
 
   const LH3 = window.LH3;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const K_RUN='lh3_run', K_SET='lh3_settings', K_SEEN='lh3_seen', K_LEADS='lh3_leads', K_PROBE='lh3_probe';
+  const K_RUN='lh3_run', K_SET='lh3_settings', K_SEEN='lh3_seen', K_LEADS='lh3_leads', K_HISTORY='lh3_research_history', K_PROBE='lh3_probe';
   const get = async (k,d) => { const o=await chrome.storage.local.get(k); return o[k]===undefined?d:o[k]; };
   const set = o => chrome.storage.local.set(o);
   const txt = el => (el ? (el.textContent || '').replace(/\s+/g,' ').trim() : '');
   const PHONE_RX = /(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
   const CARD_SELECTOR='a.hfpxzc[href*="/maps/place/"]';
-  const DETAIL_COOLDOWN_MS=120;
+  const DETAIL_COOLDOWN_MS=850;
 
   let PANEL, STATUS_EL, META_EL, FILL_EL, TRACK_EL, START_BTN, STOP_BTN, SCAN_BTN, PROBE_BTN;
   let stepGuard=false;
@@ -405,6 +405,7 @@
 
   async function startRun() {
     const s=Object.assign({},LH3.DEFAULT_SETTINGS,await get(K_SET,{}));
+    s.syncToSheet=true;
     const terms=[...new Set((s.terms||[]).map(t=>t.trim().toLowerCase()).filter(Boolean))];
     const cities=[...new Set((s.cities||[]).map(c=>c.trim()).filter(Boolean))];
     if(!terms.length) return {ok:false,error:'Add at least one search term.'};
@@ -452,6 +453,7 @@
         have.add(k); leads.push(b); kept.push(b); added++;
       }
       await set({[K_LEADS]:leads});
+      if(kept.length){const history=await get(K_HISTORY,[]),known=new Set(history.map(LH3.leadKey));kept.forEach(x=>{if(!known.has(LH3.leadKey(x))){known.add(LH3.leadKey(x));history.push(x);}});await set({[K_HISTORY]:history.slice(-5000)});}
       let synced='';
       if(kept.length && s.syncToSheet){ const r=await pushToSheet(kept,s); if(r) synced=` · sheet +${r.added}`; }
       status(`“${cur.term}” ${cur.city} — kept ${added}/${rows.length}`+synced+(added?'':` · ${why(skip,rows.length)}`), added?'ok':'warn');
@@ -484,16 +486,13 @@
     if(skip.unrated)b.push(`${skip.unrated} had no rating`); if(skip.rating)b.push(`${skip.rating} outside star range`); if(skip.laser)b.push(`${skip.laser} outside laser context`); return b.length?'skipped '+b.join(', '):'nothing new';
   }
 
-  async function pushToSheet(rows,s){
-    if(!s||!s.syncToSheet||!s.sheetUrl||!rows.length) return null;
+  async function pushToSheet(rows){
+    if(!rows.length) return null;
     try{
-      const crmUrl='https://onyx-crm.edgeformmedia.workers.dev/';
-      const url=/^https:\/\/script\.google\.com\/macros\/s\//.test(s.sheetUrl||'')?crmUrl:s.sheetUrl;
-      const secret=url===crmUrl?'test':(s.sheetSecret||'');
-      const res=await chrome.runtime.sendMessage({type:'LH3_SHEET',url,payload:{action:'appendLeads',secret,rows}});
-      if(!res||!res.ok){status('Sheet sync failed: '+((res&&res.error)||'no reply'),'err');return null;}
+      const res=await chrome.runtime.sendMessage({type:'LH3_SHEET',url:'https://onyx-crm.edgeformmedia.workers.dev/',payload:{action:'appendLeads',secret:'test',rows}});
+      if(!res||!res.ok){status('ONYX sync failed: '+((res&&res.error)||'no reply'),'err');return null;}
       return res.data;
-    }catch(e){status('Sheet sync failed: '+e.message,'err');return null;}
+    }catch(e){status('ONYX sync failed: '+e.message,'err');return null;}
   }
 
   async function downloadCsv(leads){
@@ -520,6 +519,7 @@
   async function scanThisPage(){
     if(!location.pathname.startsWith('/maps')){status('Open Google Maps first.','warn');return;}
     const s=Object.assign({},LH3.DEFAULT_SETTINGS,await get(K_SET,{}));
+    s.syncToSheet=true;
     const fakeGen=Date.now();
     const temp={active:true,gen:fakeGen,plan:[],idx:0,total:0,limit:Math.max(1,s.limit||200),settings:s};
     await set({[K_RUN]:temp});
@@ -531,6 +531,7 @@
     for(const b of rows){if(s.skipChains&&LH3.isChain(b.name))continue;if(s.requirePhone&&!b.phone)continue;if(s.badReviewMode&&(!Number(b.rating)||Number(b.rating)<Number(s.minRating||0)||Number(b.rating)>Number(s.maxRating||5)))continue;if(s.badReviewMode&&s.laserOnly&&!/laser|hair removal/i.test([b.searchTerm,b.category,b.name].join(' ')))continue;if(s.badReviewMode){b.reviewOpportunity=Number(b.rating)<=1?'Urgent: 0–1 star public rating':'Priority: low public rating';b.reviewResearchStatus='Open Google Maps reviews to validate laser-hair-removal complaint.';}const k=LH3.leadKey(b);if(have.has(k)||seen.has(k))continue;have.add(k);out.push(b);}
     if(!out.length){status('No new businesses with phone numbers were found on this Maps search.','warn');return;}
     await set({[K_LEADS]:out});
+    if(out.length){const history=await get(K_HISTORY,[]),known=new Set(history.map(LH3.leadKey));out.forEach(x=>{if(!known.has(LH3.leadKey(x))){known.add(LH3.leadKey(x));history.push(x);}});await set({[K_HISTORY]:history.slice(-5000)});}
     let tail='';if(s.syncToSheet){const r=await pushToSheet(out,s);if(r)tail=` · sheet +${r.added}`;}if(s.downloadCsv!==false)await downloadCsv(out);
     const all=new Set(await get(K_SEEN,[]));out.forEach(l=>all.add(LH3.leadKey(l)));await set({[K_SEEN]:[...all]});
     status(`Kept ${out.length} Maps businesses`+tail,'ok');
