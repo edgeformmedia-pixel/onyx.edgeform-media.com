@@ -873,6 +873,14 @@ function ownerTokens(owner) {
   return String(owner && owner.decisionMakerName || '').toLowerCase().split(/[^a-z]+/).filter(x => x.length > 1 && x !== 'unknown');
 }
 
+function usablePublicContactEmail(email) {
+  if (!validEmail(email)) return false;
+  const domain = String(email).trim().toLowerCase().split('@')[1] || '';
+  // Template examples and booking/website-platform mailboxes often appear in
+  // page markup. They are not contact addresses for the target business.
+  return !/^(?:mystore\.com|example\.com|yourdomain\.com|vagaro\.com|fresha\.com|booksy\.com|glossgenius\.com|mindbodyonline\.com|acuityscheduling\.com|calendly\.com|wix\.com|wixsite\.com|squareup\.com)$/i.test(domain);
+}
+
 function classifySiteEmail(email, lead, owner) {
   const local = String(email).split('@')[0].toLowerCase();
   const generic = /^(info|hello|contact|office|admin|support|sales|booking|appointments?|reception|frontdesk|team|care|inquiries|marketing)$/i.test(local);
@@ -884,7 +892,7 @@ function classifySiteEmail(email, lead, owner) {
 function siteCandidates(crawl, lead, owner) {
   const dom = companyDomain(lead);
   const junkDomains = /(?:wixpress|sentry|cloudflare|wordpress|example\.com|schema\.org)$/i;
-  return (crawl.emails || []).filter(validEmail).filter(email => !junkDomains.test(email.split('@')[1] || '')).map(email => {
+  return (crawl.emails || []).filter(usablePublicContactEmail).filter(email => !junkDomains.test(email.split('@')[1] || '')).map(email => {
     const eDom = email.split('@')[1].toLowerCase();
     const firstUrl = (crawl.emailSources[email] || [crawl.root])[0] || '';
     return {
@@ -908,7 +916,7 @@ function emailCandidateScore(c) {
 function mergeEmailCandidates(...lists) {
   const map = new Map();
   for (const list of lists) for (const c of (list || [])) {
-    if (!c || !validEmail(c.email)) continue;
+    if (!c || !usablePublicContactEmail(c.email)) continue;
     const key = c.email.toLowerCase();
     const old = map.get(key);
     const score = emailCandidateScore(c);

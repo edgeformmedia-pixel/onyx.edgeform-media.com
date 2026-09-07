@@ -472,7 +472,13 @@ Onyx.requireAuth(function () {
       var f = {};
       map.forEach(function (p) {
         var v = d && d[p[0]];
-        if (v === undefined || v === null || v === '' || v === 'Unknown') return;
+        // Research may intentionally return no usable email after filtering a
+        // template/platform address. Clear an old auto-found value, but never
+        // overwrite an email that a user entered manually.
+        if (v === undefined || v === null || v === '' || v === 'Unknown') {
+          if (p[1] === 'email' && lead.email && !/^Entered by /i.test(String(lead.emailStatus || ''))) f.email = '';
+          return;
+        }
         if (p[1] === 'email' && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return;
         if (['emailCandidates','phoneCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
           v = JSON.stringify(v);
