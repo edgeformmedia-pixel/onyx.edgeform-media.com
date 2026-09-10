@@ -11,7 +11,7 @@
 <div id="chrome"></div>
 <main class="dial-wrap">
   <header class="dial-head">
-    <div><p class="eyebrow">Mobile workspace</p><h1>Dial Mobile Mode</h1><p class="hint" id="queueStatus">Loading your call queue…</p></div>
+    <div class="dial-title-group"><a class="dial-back" id="dialBack" href="/pipeline/" aria-label="Back to lead">←</a><div><p class="eyebrow">Mobile workspace</p><h1>Dial Mobile Mode</h1><p class="hint" id="queueStatus">Loading your call queue…</p></div></div>
     <button class="dial-summary-toggle" id="summaryToggle" type="button" aria-expanded="true" aria-controls="dialSummary"><span class="sr-only">Toggle today's performance</span><span aria-hidden="true" id="summaryArrow">↑</span></button>
   </header>
   <section class="dial-summary" id="dialSummary" aria-label="Today's performance">
@@ -34,6 +34,7 @@ Onyx.requireAuth(function () {
     { label: 'Gatekeeper', stage: '', tone: 'neutral' }, { label: 'Interested', stage: 'Interested', tone: 'good' },
     { label: 'Appointment set', stage: 'Demo Booked', tone: 'great' }, { label: 'Call back', stage: 'Contacted', tone: 'neutral' }
   ];
+  if (directId) document.getElementById('dialBack').href = '/lead/?id=' + encodeURIComponent(directId);
   document.getElementById('summaryToggle').addEventListener('click', function () { var summary = document.getElementById('dialSummary'), open = !summary.hidden; summary.hidden = open; this.setAttribute('aria-expanded', String(!open)); document.getElementById('summaryArrow').textContent = open ? '↓' : '↑'; });
   document.getElementById('refreshHistory').addEventListener('click', loadStats);
   loadQueue(); loadStats();

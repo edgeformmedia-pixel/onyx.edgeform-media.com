@@ -324,6 +324,7 @@ table.grid{font-size:12.5px}
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .dial-wrap{width:min(100%,720px);margin:0 auto;padding:28px 18px 80px}
 .dial-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
+.dial-title-group{display:flex;align-items:flex-start;gap:12px}.dial-back{display:grid;place-items:center;flex:0 0 auto;width:40px;height:40px;border:1px solid var(--line2);border-radius:50%;background:#fff;color:#344454;text-decoration:none;font-size:20px;line-height:1}.dial-back:hover{background:#f3f7fa;border-color:#a9b6c2;color:#17212b}
 .dial-head h1{font-size:26px;line-height:1.15;letter-spacing:-.035em;margin:2px 0 6px}
 .eyebrow{margin:0;color:var(--accent);font-size:10px;line-height:1.2;text-transform:uppercase;letter-spacing:.13em;font-weight:800}
 .dial-summary-toggle,.lead-detail-toggle{display:grid;place-items:center;flex:0 0 auto;width:40px;height:40px;border:1px solid var(--line2);border-radius:50%;background:#fff;color:#344454;font-size:19px;cursor:pointer}
