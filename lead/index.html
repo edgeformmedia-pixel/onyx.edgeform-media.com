@@ -15,10 +15,15 @@
     <div class="actions" style="margin:0" id="topActions"></div>
   </div>
 
-  <div class="cols">
-    <div>
-      <section class="panel">
-        <h2>Decision maker</h2>
+  <div class="lead-record-stack">
+    <section class="panel lead-priority-panel">
+      <div class="lead-section-heading"><div><p class="eyebrow">Google Business profile</p><h2>Business information</h2></div><span class="tag" id="googleRating"></span></div>
+      <div class="dgrid lead-business-grid" id="bizGrid"></div>
+      <div class="actions" id="links"></div>
+    </section>
+
+    <section class="panel lead-priority-panel">
+        <div class="lead-section-heading"><div><p class="eyebrow">AI-found information</p><h2>Decision maker</h2></div><span class="tag" id="researchStatus">Not researched</span></div>
         <div class="dgrid">
           <span class="k">Name</span><input id="dmName" placeholder="Not found yet">
           <span class="k">Title</span><input id="dmTitle" placeholder="Owner, Medical Director...">
@@ -41,26 +46,9 @@
           <button class="btn ok compact" id="emailThem" hidden>Email them</button>
         </div>
         <p class="msg" id="dmMsg"></p>
-      </section>
+    </section>
 
-      <section class="panel" id="peopleResearchPanel">
-        <h2>Owner lookup shortcuts</h2>
-        <p class="hint">Built from the AI owner name + business phone/address. Phone URLs automatically remove a leading +1.</p>
-        <div class="research-links" id="peopleResearchLinks"></div>
-      </section>
-
-      <section class="panel" id="researchPanel" hidden>
-        <h2>Research</h2>
-        <div class="dgrid" id="researchGrid"></div>
-        <div id="emailCandidates"></div>
-        <div id="phoneCandidates"></div>
-        <div id="ownerCandidates"></div>
-        <div id="researchSources"></div>
-        <div id="suggested"></div>
-      </section>
-    </div>
-
-    <div>
+    <div class="lead-work-grid">
       <section class="panel">
         <h2>Pipeline</h2>
         <div class="dgrid">
@@ -69,17 +57,8 @@
           <span class="k">Next action</span><input id="nextAction">
           <span class="k">Callback</span><input type="date" id="nextActionDate">
         </div>
-        <div class="actions">
-          <button class="btn primary compact" id="savePipe">Save</button>
-          <span class="hint" id="callMeta"></span>
-        </div>
+        <div class="actions"><button class="btn primary compact" id="savePipe">Save</button><span class="hint" id="callMeta"></span></div>
         <p class="msg" id="pipeMsg"></p>
-      </section>
-
-      <section class="panel">
-        <h2>Business</h2>
-        <div class="dgrid" id="bizGrid"></div>
-        <div class="actions" id="links"></div>
       </section>
 
       <section class="panel">
@@ -88,12 +67,28 @@
         <div class="actions"><button class="btn quiet compact" id="addNote">Add note</button></div>
         <div class="notes" id="notes"></div>
       </section>
+    </div>
+
+      <section class="panel" id="peopleResearchPanel">
+        <h2>Owner lookup shortcuts</h2>
+        <p class="hint">Built from the AI owner name + business phone/address. Phone URLs automatically remove a leading +1.</p>
+        <div class="research-links" id="peopleResearchLinks"></div>
+      </section>
+
+      <section class="panel" id="researchPanel" hidden>
+        <div class="lead-section-heading"><div><p class="eyebrow">Detailed analysis</p><h2>AI research</h2></div></div>
+        <div class="dgrid" id="researchGrid"></div>
+        <div id="emailCandidates"></div>
+        <div id="phoneCandidates"></div>
+        <div id="ownerCandidates"></div>
+        <div id="researchSources"></div>
+        <div id="suggested"></div>
+      </section>
 
       <section class="panel">
         <h2>Activity</h2>
         <div id="activity"><p class="hint">Loading...</p></div>
       </section>
-    </div>
   </div>
 </div>
 
@@ -347,7 +342,9 @@ Onyx.requireAuth(function () {
 
     document.getElementById('topActions').innerHTML =
       (String(l.isNationalChain) === 'Yes' ? '<span class="tag chain">national chain</span>' : '') +
-      (l.leadScore ? '<span class="' + Onyx.scoreClass(l.leadScore) + '">' + esc(l.leadScore) + '</span>' : '');
+      (l.leadScore ? '<span class="' + Onyx.scoreClass(l.leadScore) + '">' + esc(l.leadScore) + '</span>' : '') +
+      (l.email ? '<a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(id) + '">Email</a>' : '') +
+      (l.phone ? '<a class="btn primary compact" href="/dial-mobile/?id=' + encodeURIComponent(id) + '">Call</a>' : '');
 
     ['dmName', 'dmTitle', 'email', 'dmConfidence', 'directPhone', 'linkedin', 'instagram',
      'owner', 'nextAction'].forEach(function (k) {
@@ -358,6 +355,9 @@ Onyx.requireAuth(function () {
     document.getElementById('emailThem').hidden = !l.email;
     document.getElementById('emailConfidenceView').value = l.emailConfidence || '';
     document.getElementById('emailStatusView').value = l.emailStatus || '';
+    document.getElementById('researchStatus').textContent = l.enrichedAt ? 'AI researched' : 'Not researched';
+    document.getElementById('researchStatus').className = 'tag' + (l.enrichedAt ? ' ok' : '');
+    document.getElementById('googleRating').textContent = l.rating ? l.rating + ' ★ · ' + (l.reviewCount || 0) + ' reviews' : 'No rating';
     document.getElementById('peopleResearchLinks').innerHTML = buildPeopleLinks(l) || '<p class="hint">Add an owner name, phone, or address to generate lookup links.</p>';
 
     var sel = document.getElementById('stage');
@@ -380,7 +380,7 @@ Onyx.requireAuth(function () {
     document.getElementById('links').innerHTML =
       (l.website ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.website) + '">Website</a>' : '') +
       (l.mapsUrl ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.mapsUrl) + '">Maps</a>' : '') +
-      (l.phone ? '<a class="btn quiet compact" href="tel:' + esc(String(l.phone).replace(/\D/g, '')) + '">Call</a>' : '');
+      (l.phone ? '<a class="btn primary compact" href="/dial-mobile/?id=' + encodeURIComponent(id) + '">Call this lead</a>' : '');
 
     if (l.leadScore || l.salesAngle || l.researchSummary || l.emailCandidates || l.phoneCandidates || l.ownerCandidates) {
       document.getElementById('researchPanel').hidden = false;
