@@ -343,7 +343,7 @@ Onyx.requireAuth(function () {
     document.getElementById('topActions').innerHTML =
       (String(l.isNationalChain) === 'Yes' ? '<span class="tag chain">national chain</span>' : '') +
       (l.leadScore ? '<span class="' + Onyx.scoreClass(l.leadScore) + '">' + esc(l.leadScore) + '</span>' : '') +
-      (l.email ? '<a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(id) + '">Email</a>' : '') +
+      '<a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(id) + '">Open in email campaign</a>' +
       (l.phone ? '<a class="btn primary compact" href="/dial-mobile/?id=' + encodeURIComponent(id) + '">Call</a>' : '');
 
     ['dmName', 'dmTitle', 'email', 'dmConfidence', 'directPhone', 'linkedin', 'instagram',

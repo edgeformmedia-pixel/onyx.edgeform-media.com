@@ -46,7 +46,7 @@
     <table class="grid">
       <thead><tr>
         <th style="width:64px">Score</th><th>Business</th><th>City</th>
-        <th>Decision maker</th><th>Email</th><th>Phone</th><th>Stage</th><th>Owner</th>
+        <th>Decision maker</th><th>Email</th><th>Phone</th><th>Stage</th><th>Owner</th><th>Campaign</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -137,18 +137,18 @@ Onyx.requireAuth(function () {
   });
 
   function load() {
-    document.getElementById('rows').innerHTML = '<tr><td colspan="8" class="muted">Loading...</td></tr>';
+    document.getElementById('rows').innerHTML = '<tr><td colspan="9" class="muted">Loading...</td></tr>';
     Onyx.sheet('listLeads', payload()).then(render);
   }
 
   function render(r) {
     var tb = document.getElementById('rows');
-    if (!r.ok) { tb.innerHTML = '<tr><td colspan="8" class="muted">' + Onyx.esc(r.error) + '</td></tr>'; return; }
+    if (!r.ok) { tb.innerHTML = '<tr><td colspan="9" class="muted">' + Onyx.esc(r.error) + '</td></tr>'; return; }
 
     document.getElementById('sub').textContent = r.total + ' leads match';
 
     if (!r.leads.length) {
-      tb.innerHTML = '<tr><td colspan="8"><div class="empty-state"><h3>Nothing here</h3>' +
+      tb.innerHTML = '<tr><td colspan="9"><div class="empty-state"><h3>Nothing here</h3>' +
         '<p class="hint">Loosen the filters, or run the LeadHunter extension to pull more leads in.</p>' +
         '</div></td></tr>';
     } else {
@@ -166,7 +166,8 @@ Onyx.requireAuth(function () {
           '<td>' + (l.email ? Onyx.esc(l.email) : '<span class="muted">-</span>') + '</td>' +
           '<td>' + Onyx.esc(l.phone || '') + '</td>' +
           '<td>' + Onyx.esc(l.stage || '') + '</td>' +
-          '<td>' + Onyx.esc(l.owner || '') + '</td></tr>';
+          '<td>' + Onyx.esc(l.owner || '') + '</td>' +
+          '<td><a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(l.id) + '">Campaign</a></td></tr>';
       }).join('');
     }
 
@@ -179,6 +180,7 @@ Onyx.requireAuth(function () {
 
   document.getElementById('rows').addEventListener('click', function (e) {
     var tr = e.target.closest('tr[data-id]');
+    if (e.target.closest('a,button,input,select,label')) return;
     if (tr) location.href = '/lead/?id=' + encodeURIComponent(tr.dataset.id);
   });
 

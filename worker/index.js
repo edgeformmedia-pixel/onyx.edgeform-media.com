@@ -6,9 +6,8 @@
      OPENAI_API_KEY   sk-...
      ONYX_SECRET      must match CRM WORKER_SECRET
    Optional:
-     OPENAI_SEARCH_MODEL optional; defaults to gpt-5.4-mini
-     OPENAI_ANALYSIS_MODEL optional; defaults to gpt-5.4-mini
-     NOTE: legacy OPENAI_MODEL is intentionally ignored in v5 so an old Sol override cannot silently make research expensive again
+     OPENAI_SEARCH_MODEL optional; defaults to gpt-5.6-sol
+     OPENAI_ANALYSIS_MODEL optional; defaults to gpt-5.6-sol
      ONYX_KV          KV binding for daily email cap
    ═══════════════════════════════════════════════════════════════ */
 
@@ -19,7 +18,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8080'
 ];
 
-const SEND_DOMAIN = 'edgeform-media.com';
+const SEND_DOMAIN = 'onyxmedicalgroups.com';
 const DAILY_CAP = 400;
 // Sales-fit crawling runs inside a Worker request. Keep the synchronous HTML
 // parsing budget deliberately small so a large marketing site cannot exhaust
@@ -423,11 +422,11 @@ async function openaiRequest(env, payload, label, timeoutMs) {
 }
 
 function searchModel(env, body) {
-  return body.searchModel || env.OPENAI_SEARCH_MODEL || 'gpt-5.4-mini';
+  return body.searchModel || env.OPENAI_SEARCH_MODEL || 'gpt-5.6-sol';
 }
 
 function analysisModel(env, body) {
-  return body.analysisModel || env.OPENAI_ANALYSIS_MODEL || env.OPENAI_SEARCH_MODEL || 'gpt-5.4-mini';
+  return body.analysisModel || env.OPENAI_ANALYSIS_MODEL || env.OPENAI_SEARCH_MODEL || 'gpt-5.6-sol';
 }
 
 function stateRegistryDomains(state) {
