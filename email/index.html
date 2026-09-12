@@ -23,9 +23,8 @@
         <span class="hint campaign-address" id="fromAddress"></span>
       </div>
       <div class="row">
-        <label for="replyTo">Reply to</label>
-        <input type="text" id="replyTo" autocomplete="off" placeholder="customerrelations" aria-describedby="replyAddress">
-        <span class="hint campaign-address" id="replyAddress"></span>
+        <label>Reply to</label>
+        <span class="campaign-fixed-address">team@onyxmedicalgroups.com</span>
       </div>
       <div class="row">
         <label for="tpl">Template</label>
@@ -71,8 +70,8 @@
     </div>
     <div class="tablewrap">
       <table class="grid small">
-        <thead><tr><th>Sent</th><th>Lead</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Update</th></tr></thead>
-        <tbody id="activityRows"><tr><td colspan="6" class="muted">Loading campaign activity…</td></tr></tbody>
+        <thead><tr><th>Sent</th><th>Business</th><th>Recipient</th><th>Subject</th><th>Opened</th><th>Status</th><th>Update</th></tr></thead>
+        <tbody id="activityRows"><tr><td colspan="7" class="muted">Loading campaign activity…</td></tr></tbody>
       </table>
     </div>
     <p class="hint campaign-tracking-note">For this test version, replies are marked manually. Automatic reply detection requires receiving email for the Onyx domain and a Resend inbound webhook.</p>
@@ -84,7 +83,7 @@
 <script>
 Onyx.requireAuth(function (user) {
   var CFG = Onyx.cfg, TPL = window.ONYX_TEMPLATES || [], queue = [];
-  var fromInput = document.getElementById('from'), replyInput = document.getElementById('replyTo');
+  var fromInput = document.getElementById('from');
   var tplSel = document.getElementById('tpl');
 
   function cleanLocal(value) {
@@ -96,17 +95,14 @@ Onyx.requireAuth(function (user) {
   }
   function updateAddresses() {
     document.getElementById('fromAddress').textContent = fullAddress(fromInput);
-    document.getElementById('replyAddress').textContent = fullAddress(replyInput);
   }
 
   var defaultSender = (CFG.FROM_OPTIONS || [])[0] || 'customerrelations';
   fromInput.value = defaultSender;
-  replyInput.value = defaultSender;
   document.getElementById('senderOptions').innerHTML = (CFG.FROM_OPTIONS || []).map(function (v) {
     return '<option value="' + Onyx.esc(v) + '"></option>';
   }).join('');
   fromInput.addEventListener('input', updateAddresses);
-  replyInput.addEventListener('input', updateAddresses);
   updateAddresses();
 
   tplSel.innerHTML = '<option value="">— pick a template —</option>';
@@ -131,9 +127,10 @@ Onyx.requireAuth(function (user) {
       element.innerHTML = '<div class="campaign-empty">Open a lead from Pipeline or add leads here.</div>';
     } else {
       element.innerHTML = queue.map(function (item, index) {
-        return '<label class="campaign-recipient"><input type="checkbox" data-index="' + index + '"' + (item.selected ? ' checked' : '') + '>' +
-          '<span><b>' + Onyx.esc(item.name || 'Manual recipient') + '</b><small>' + Onyx.esc(item.email || '') + '</small></span>' +
-          '<button class="link campaign-remove" type="button" data-remove="' + index + '">Remove</button></label>';
+        return '<div class="campaign-recipient"><input type="checkbox" aria-label="Select ' + Onyx.esc(item.name || item.email) + '" data-index="' + index + '"' + (item.selected ? ' checked' : '') + '>' +
+          '<div class="campaign-recipient-details"><b>' + Onyx.esc(item.name || 'Manual recipient') + '</b>' +
+          '<input type="email" data-email-index="' + index + '" aria-label="Recipient email for ' + Onyx.esc(item.name || 'manual recipient') + '" value="' + Onyx.esc(item.email || '') + '"></div>' +
+          '<button class="link campaign-remove" type="button" data-remove="' + index + '">Remove</button></div>';
       }).join('');
     }
     document.getElementById('sendBatch').textContent = 'Send selected (' + selected().length + ')';
@@ -147,10 +144,16 @@ Onyx.requireAuth(function (user) {
   }
 
   document.getElementById('queue').addEventListener('change', function (event) {
-    if (!event.target.matches('input[type=checkbox]')) return;
-    var item = queue[Number(event.target.dataset.index)];
-    if (item) item.selected = event.target.checked;
-    renderQueue();
+    if (event.target.matches('input[type=checkbox]')) {
+      var item = queue[Number(event.target.dataset.index)];
+      if (item) item.selected = event.target.checked;
+      renderQueue();
+      return;
+    }
+    if (event.target.matches('[data-email-index]')) {
+      var recipient = queue[Number(event.target.dataset.emailIndex)];
+      if (recipient) recipient.email = event.target.value.trim();
+    }
   });
   document.getElementById('queue').addEventListener('click', function (event) {
     var button = event.target.closest('[data-remove]');
@@ -186,13 +189,16 @@ Onyx.requireAuth(function (user) {
     if (CFG.UNSUBSCRIBE_LINE) foot.push(Onyx.esc(CFG.UNSUBSCRIBE_LINE));
     if (CFG.POSTAL_ADDRESS) foot.push(Onyx.esc(CFG.POSTAL_ADDRESS));
     return '<div style="font:14px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111">' + Onyx.esc(value).replace(/\n/g, '<br>') +
-      (foot.length ? '<hr style="border:0;border-top:1px solid #ddd;margin:24px 0 10px"><div style="font-size:11px;color:#888">' + foot.join('<br>') + '</div>' : '') + '</div>';
+      '<div style="margin:26px 0 12px;padding-top:18px;border-top:1px solid #e5e5e5">' +
+      '<a href="https://www.instagram.com/onyxmedicalgroups/" style="text-decoration:none"><img src="https://onyx.edgeform-media.com/assets/onyx-medical-groups-logo.jpg" width="140" alt="Onyx Medical Groups" style="display:block;width:140px;max-width:100%;height:auto;border:0"></a>' +
+      '<a href="https://www.instagram.com/onyxmedicalgroups/" style="display:inline-block;margin-top:8px;color:#555;font-size:12px">Follow @onyxmedicalgroups on Instagram</a></div>' +
+      (foot.length ? '<div style="font-size:11px;color:#888">' + foot.join('<br>') + '</div>' : '') + '</div>';
   }
 
   function validationError() {
     if (!cleanLocal(fromInput.value)) return 'Enter a sender name.';
-    if (!cleanLocal(replyInput.value)) return 'Enter a reply-to name.';
     if (!selected().length) return 'Select at least one recipient.';
+    if (selected().some(function (item) { return !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(item.email || ''); })) return 'Correct the highlighted recipient email before sending.';
     if (!document.getElementById('subject').value.trim()) return 'Add a subject line.';
     if (!document.getElementById('body').value.trim()) return 'The message is empty.';
     if (!CFG.POSTAL_ADDRESS) return 'Add a postal address in Admin first.';
@@ -216,7 +222,7 @@ Onyx.requireAuth(function (user) {
       var subject = mergeFor(document.getElementById('subject').value, item);
       var body = mergeFor(document.getElementById('body').value, item);
       return { leadId: item.id || '', to: item.email, subject: subject, html: emailHtml(body), text: body,
-        fromLocal: cleanLocal(fromInput.value), replyLocal: cleanLocal(replyInput.value), fromName: user.name || 'Onyx Medical Groups' };
+        fromLocal: cleanLocal(fromInput.value), fromName: user.name || 'Onyx Medical Groups' };
     });
     button.disabled = true; Onyx.msg('m', 'Sending ' + messages.length + ' email' + (messages.length === 1 ? '' : 's') + '…');
     Onyx.campaign('sendBatch', { messages: messages }).then(function (result) {
@@ -233,14 +239,17 @@ Onyx.requireAuth(function (user) {
   function loadActivity() {
     Onyx.campaign('listSends', {}).then(function (result) {
       var element = document.getElementById('activityRows');
-      if (!result.ok) { element.innerHTML = '<tr><td colspan="6" class="muted">' + Onyx.esc(result.error || 'Could not load activity.') + '</td></tr>'; return; }
-      if (!(result.sends || []).length) { element.innerHTML = '<tr><td colspan="6" class="muted">No campaign emails sent yet.</td></tr>'; return; }
+      if (!result.ok) { element.innerHTML = '<tr><td colspan="7" class="muted">' + Onyx.esc(result.error || 'Could not load activity.') + '</td></tr>'; return; }
+      if (!(result.sends || []).length) { element.innerHTML = '<tr><td colspan="7" class="muted">No campaign emails sent yet.</td></tr>'; return; }
       element.innerHTML = result.sends.map(function (send) {
         var action = send.status === 'replied'
           ? '<button class="btn quiet compact" data-status="waiting" data-send-id="' + send.id + '">Undo replied</button>'
           : '<button class="btn ok compact" data-status="replied" data-send-id="' + send.id + '">Mark replied</button>';
+        var opened = Number(send.openCount) > 0
+          ? '<span class="campaign-opened">Opened</span><small>' + Onyx.esc(String(send.openedAt || '').slice(0, 16).replace('T', ' ')) + (Number(send.openCount) > 1 ? ' · ' + send.openCount + ' loads' : '') + '</small>'
+          : '<span class="campaign-not-opened">Not opened</span>';
         return '<tr><td>' + Onyx.esc(String(send.at || '').slice(0, 16).replace('T', ' ')) + '</td><td>' + Onyx.esc(send.leadName || 'Manual test') + '</td>' +
-          '<td>' + Onyx.esc(send.recipient) + '</td><td>' + Onyx.esc(send.subject) + '</td><td><span class="campaign-status ' + Onyx.esc(send.status || 'waiting') + '">' + Onyx.esc(statusLabel(send.status)) + '</span></td><td>' + action + '</td></tr>';
+          '<td>' + Onyx.esc(send.recipient) + '</td><td>' + Onyx.esc(send.subject) + '</td><td class="campaign-open-cell">' + opened + '</td><td><span class="campaign-status ' + Onyx.esc(send.status || 'waiting') + '">' + Onyx.esc(statusLabel(send.status)) + '</span></td><td>' + action + '</td></tr>';
       }).join('');
     });
   }
@@ -261,6 +270,7 @@ Onyx.requireAuth(function (user) {
     });
   }
   renderQueue(); loadActivity();
+  window.setInterval(loadActivity, 30000);
 });
 </script>
 </body>

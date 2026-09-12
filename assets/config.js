@@ -18,11 +18,13 @@ window.ONYX_CONFIG = {
 
 window.ONYX_TEMPLATES = [
   {
-    name: 'Test outreach — introduction',
-    subject: 'Quick question for {{business}}',
+    name: 'Cold outreach — call opener',
+    subject: '{{business}} — one quick idea',
     body: 'Hi {{firstName}},\n\n' +
-      'I wanted to introduce myself and see who handles equipment decisions at {{business}}.\n\n' +
-      'Would you be the right person to speak with?\n\n{{myName}}\nOnyx Medical Groups'
+      'I had a quick idea for {{business}}.\n\n' +
+      'We help med spas add laser hair removal and tattoo removal with an Onyx system, training included, without tying up the entire cash purchase on day one.\n\n' +
+      'If it looks relevant, I can send the pricing and simple break-even numbers. Would it be unreasonable for me to call you this week and walk you through it?\n\n' +
+      '{{myName}}\nOnyx Medical Groups'
   },
   {
     name: 'Test outreach — follow-up',

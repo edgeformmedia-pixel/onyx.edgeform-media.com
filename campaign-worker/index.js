@@ -1,4 +1,6 @@
 const SEND_DOMAIN = 'onyxmedicalgroups.com';
+const REPLY_TO = 'team@onyxmedicalgroups.com';
+const TRACKING_ORIGIN = 'https://onyx-campaigns.edgeformmedia.workers.dev';
 const MAX_BATCH_SIZE = 10;
 const DAILY_CAP = 400;
 const ALLOWED_ORIGINS = new Set([
@@ -41,11 +43,10 @@ function localPart(value) {
   return text(value).toLowerCase().replace(/[^a-z0-9._-]/g, '');
 }
 
-async function sendThroughResend(env, message, user) {
+async function sendThroughResend(env, message, user, trackingToken) {
   const to = text(message.to), subject = text(message.subject);
   const html = text(message.html), plain = text(message.text);
   const fromLocal = localPart(message.fromLocal);
-  const replyLocal = localPart(message.replyLocal || fromLocal);
   if (!validEmail(to)) return { ok: false, error: 'Invalid recipient address.' };
   if (!fromLocal) return { ok: false, error: 'Sender name is required.' };
   if (!subject) return { ok: false, error: 'Subject is required.' };
@@ -56,9 +57,9 @@ async function sendThroughResend(env, message, user) {
     from: `${fromName} <${fromLocal}@${SEND_DOMAIN}>`,
     to: [to],
     subject,
-    reply_to: `${replyLocal || fromLocal}@${SEND_DOMAIN}`
+    reply_to: REPLY_TO
   };
-  if (html) payload.html = html;
+  if (html) payload.html = html + `<img src="${TRACKING_ORIGIN}/track/${trackingToken}.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;overflow:hidden">`;
   if (plain) payload.text = plain;
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -70,11 +71,11 @@ async function sendThroughResend(env, message, user) {
   return response.ok ? { ok: true, id: result.id } : { ok: false, error: result.message || 'Resend rejected the email.' };
 }
 
-async function recordResult(env, user, message, result) {
+async function recordResult(env, user, message, result, trackingToken) {
   const at = now(), leadId = text(message.leadId), recipient = text(message.to);
   const status = result.ok ? 'waiting' : 'failed';
-  await env.DB.prepare('INSERT INTO sends(at,user,lead_id,recipient,from_local,subject,resend_id,status) VALUES(?,?,?,?,?,?,?,?)')
-    .bind(at, user.username, leadId, recipient, localPart(message.fromLocal), text(message.subject), result.id || '', status).run();
+  await env.DB.prepare('INSERT INTO sends(at,user,lead_id,recipient,from_local,subject,resend_id,status,tracking_token,open_count) VALUES(?,?,?,?,?,?,?,?,?,0)')
+    .bind(at, user.username, leadId, recipient, localPart(message.fromLocal), text(message.subject), result.id || '', status, trackingToken).run();
   if (leadId && result.ok) {
     await env.DB.batch([
       env.DB.prepare("UPDATE leads SET last_contacted=?,updated_at=?,stage=CASE WHEN stage IN ('New Lead','Ready to Call') THEN 'Contacted' ELSE stage END WHERE id=?").bind(at, at, leadId),
@@ -94,18 +95,19 @@ async function sendBatch(env, body, user) {
 
   const results = [];
   for (const message of messages) {
+    const trackingToken = crypto.randomUUID().replaceAll('-', '');
     try {
-      results.push(await recordResult(env, user, message, await sendThroughResend(env, message, user)));
+      results.push(await recordResult(env, user, message, await sendThroughResend(env, message, user, trackingToken), trackingToken));
     } catch (error) {
       console.error(JSON.stringify({ event: 'campaign_send_failed', recipient: text(message.to), message: text(error && error.message) }));
-      results.push(await recordResult(env, user, message, { ok: false, error: 'The send request failed.' }));
+      results.push(await recordResult(env, user, message, { ok: false, error: 'The send request failed.' }, trackingToken));
     }
   }
   return { ok: results.some(result => result.ok), sent: results.filter(result => result.ok).length, failed: results.filter(result => !result.ok).length, results };
 }
 
 async function listSends(env) {
-  const rows = (await env.DB.prepare("SELECT s.id,s.at,s.user,s.lead_id leadId,coalesce(l.name,'') leadName,s.recipient,s.from_local fromLocal,s.subject,s.resend_id resendId,s.status FROM sends s LEFT JOIN leads l ON l.id=s.lead_id ORDER BY s.at DESC LIMIT 100").all()).results;
+  const rows = (await env.DB.prepare("SELECT s.id,s.at,s.user,s.lead_id leadId,coalesce(l.name,'') leadName,s.recipient,s.from_local fromLocal,s.subject,s.resend_id resendId,s.status,s.opened_at openedAt,coalesce(s.open_count,0) openCount FROM sends s LEFT JOIN leads l ON l.id=s.lead_id ORDER BY s.at DESC LIMIT 100").all()).results;
   return { ok: true, sends: rows };
 }
 
@@ -123,9 +125,21 @@ async function setSendStatus(env, body, user) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const headers = corsHeaders(request);
     if (request.method === 'OPTIONS') return new Response(null, { headers });
+    if (request.method === 'GET') {
+      const match = new URL(request.url).pathname.match(/^\/track\/([a-f0-9]{32})\.gif$/i);
+      if (match) {
+        const openedAt = now();
+        ctx.waitUntil(env.DB.prepare('UPDATE sends SET opened_at=coalesce(opened_at,?),open_count=coalesce(open_count,0)+1 WHERE tracking_token=?')
+          .bind(openedAt, match[1].toLowerCase()).run());
+        return new Response(Uint8Array.from([71,73,70,56,57,97,1,0,1,0,128,0,0,255,255,255,0,0,0,33,249,4,1,0,0,0,0,44,0,0,0,0,1,0,1,0,0,2,2,68,1,0,59]), {
+          headers: { 'Content-Type': 'image/gif', 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Content-Length': '43' }
+        });
+      }
+      return json({ ok: false, error: 'Not found.' }, 404, headers);
+    }
     if (request.method !== 'POST') return json({ ok: false, error: 'POST only.' }, 405, headers);
     try {
       const body = await request.json();
