@@ -29,9 +29,11 @@ CREATE INDEX IF NOT EXISTS activity_lead_idx ON activity(lead_id, at DESC);
 CREATE TABLE IF NOT EXISTS sends (
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, user TEXT NOT NULL, lead_id TEXT, recipient TEXT,
   from_local TEXT, subject TEXT, resend_id TEXT, status TEXT, tracking_token TEXT, opened_at TEXT,
-  open_count INTEGER NOT NULL DEFAULT 0
+  open_count INTEGER NOT NULL DEFAULT 0, campaign_id TEXT, campaign_name TEXT NOT NULL DEFAULT '',
+  body_text TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS sends_tracking_token_idx ON sends(tracking_token);
+CREATE INDEX IF NOT EXISTS sends_campaign_idx ON sends(campaign_id, at DESC);
 CREATE TABLE IF NOT EXISTS requests (
   id TEXT PRIMARY KEY, email TEXT NOT NULL, first_name TEXT NOT NULL, last_name TEXT NOT NULL, note TEXT,
   status TEXT NOT NULL, requested_at TEXT NOT NULL, decided_at TEXT, decided_by TEXT

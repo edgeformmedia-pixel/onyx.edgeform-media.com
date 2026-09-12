@@ -18,19 +18,30 @@ window.ONYX_CONFIG = {
 
 window.ONYX_TEMPLATES = [
   {
-    name: 'Cold outreach — call opener',
-    subject: '{{business}} — one quick idea',
+    name: 'First outreach — call setup',
+    subject: '{{business}} — quick question',
     body: 'Hi {{firstName}},\n\n' +
       'I had a quick idea for {{business}}.\n\n' +
-      'We help med spas add laser hair removal and tattoo removal with an Onyx system, training included, without tying up the entire cash purchase on day one.\n\n' +
-      'If it looks relevant, I can send the pricing and simple break-even numbers. Would it be unreasonable for me to call you this week and walk you through it?\n\n' +
-      '{{myName}}\nOnyx Medical Groups'
+      'We help med spas add laser hair removal and tattoo removal with an Onyx system, hands-on training, and launch support — without tying up the full cash purchase on day one.\n\n' +
+      'I can send over the pricing and a simple break-even estimate for {{business}}. If the numbers look relevant, I’ll give you a quick call later this week to walk through it.\n\n' +
+      'Would that be unreasonable?\n\n' +
+      'Best,\n{{myName}}\nOnyx Medical Groups'
   },
   {
-    name: 'Test outreach — follow-up',
-    subject: 'Following up — {{business}}',
+    name: 'Follow-up — no response',
+    subject: 'Re: {{business}} — quick question',
     body: 'Hi {{firstName}},\n\n' +
-      'Just checking back on my note. If someone else is a better contact, I would appreciate a quick introduction.\n\n' +
-      'Thank you,\n{{myName}}\nOnyx Medical Groups'
+      'Wanted to make sure my note about adding laser hair removal and tattoo removal at {{business}} reached you.\n\n' +
+      'I’m happy to send the pricing and break-even estimate first so you can decide if a conversation is worthwhile. If someone else handles new services, who would be the best person to speak with?\n\n' +
+      'Best,\n{{myName}}\nOnyx Medical Groups'
+  },
+  {
+    name: 'Direct — send the numbers',
+    subject: 'Numbers for {{business}}',
+    body: 'Hi {{firstName}},\n\n' +
+      'I’m reaching out because {{business}} looks like a strong fit for an Onyx system.\n\n' +
+      'We provide the equipment, hands-on training, and launch support for laser hair removal and tattoo removal without requiring the full purchase price up front.\n\n' +
+      'Would you like me to send a one-page pricing and break-even estimate before I call?\n\n' +
+      'Best,\n{{myName}}\nOnyx Medical Groups'
   }
 ];

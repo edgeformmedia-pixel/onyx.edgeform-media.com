@@ -119,7 +119,7 @@ window.Onyx = (function () {
 
     slot.innerHTML =
       '<header class="top">' +
-        '<a class="logo" href="/home/">ONYX</a>' +
+        '<a class="logo" href="/home/" aria-label="Onyx CRM home"><img src="/assets/OMG.png" alt="Onyx Medical Groups"><span>CRM</span></a>' +
         '<nav class="tabs">' +
           NAV.filter(function (n) { return !n.adminOnly || user.role === 'admin'; })
             .map(function (n) {
