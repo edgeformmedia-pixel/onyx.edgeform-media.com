@@ -57,6 +57,21 @@ window.Onyx = (function () {
       .catch(function (e) { return { ok: false, error: 'Could not reach the worker. ' + e.message }; });
   }
 
+  function campaign(action, payload) {
+    if (!CFG.CAMPAIGN_WORKER_URL) return Promise.resolve({ ok: false, error: 'CAMPAIGN_WORKER_URL is not set.' });
+    var body = Object.assign({ action: action, token: token }, payload || {});
+    return fetch(CFG.CAMPAIGN_WORKER_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.error === 'SESSION_EXPIRED') {
+          clearSession(); location.href = '/?expired=1';
+        }
+        return d;
+      })
+      .catch(function (e) { return { ok: false, error: 'Could not reach the campaign service. ' + e.message }; });
+  }
+
   /* ── session ────────────────────────────────────────────── */
 
   function setSession(t, u) {
@@ -161,7 +176,7 @@ window.Onyx = (function () {
   }
 
   return {
-    cfg: CFG, sheet: sheet, worker: worker,
+    cfg: CFG, sheet: sheet, worker: worker, campaign: campaign,
     setSession: setSession, clearSession: clearSession, signOut: signOut,
     requireAuth: requireAuth, mountChrome: mountChrome,
     user: function () { return user; },

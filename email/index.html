@@ -10,153 +10,257 @@
 <div id="chrome"></div>
 <div class="wrap">
   <div class="page-head">
-    <div><h1>Email campaigns</h1><p class="hint">Test personalized templates, then send one email at a time through Resend.</p></div>
+    <div><h1>Email campaigns</h1><p class="hint">Personalize and send up to 10 lead emails at a time from @onyxmedicalgroups.com.</p></div>
   </div>
 
-  <section class="panel composer" style="max-width:860px">
-    <div class="row">
-      <label for="to">To</label>
-      <input type="email" id="to" placeholder="owner@theirspa.com">
-      <span class="pill" id="who">No lead attached</span>
-    </div>
-    <div class="row">
-      <label for="from">From</label>
-      <input type="text" id="from" autocomplete="off" placeholder="customerrelations" aria-describedby="domain">
-      <span class="hint" id="domain"></span>
-    </div>
-    <div class="row">
-      <label for="tpl">Template</label>
-      <select id="tpl"></select>
-      <button class="btn quiet compact" id="apply">Apply</button>
-      <span class="hint">{{business}} {{firstName}} {{city}} {{myName}}</span>
-    </div>
-    <div class="row">
-      <label for="subject">Subject</label>
-      <input type="text" id="subject" placeholder="Quick question about your laser setup">
-    </div>
-    <textarea id="body" placeholder="Write the message. Plain text with line breaks is fine."></textarea>
-    <div class="actions">
-      <button class="btn primary" id="send">Send test email</button>
-      <button class="btn quiet" id="preview">Preview</button>
-      <span class="msg" id="m" style="margin:0"></span>
-    </div>
-    <p class="hint" style="margin-top:12px">
-      Your unsubscribe line and postal address are appended automatically. CAN-SPAM requires both.
-      Set them in <a href="/admin/">Admin</a>.
-    </p>
-  </section>
+  <div class="campaign-layout">
+    <section class="panel composer campaign-composer">
+      <h2>Compose campaign</h2>
+      <div class="row">
+        <label for="from">From</label>
+        <input type="text" id="from" list="senderOptions" autocomplete="off" placeholder="customerrelations" aria-describedby="fromAddress">
+        <datalist id="senderOptions"></datalist>
+        <span class="hint campaign-address" id="fromAddress"></span>
+      </div>
+      <div class="row">
+        <label for="replyTo">Reply to</label>
+        <input type="text" id="replyTo" autocomplete="off" placeholder="customerrelations" aria-describedby="replyAddress">
+        <span class="hint campaign-address" id="replyAddress"></span>
+      </div>
+      <div class="row">
+        <label for="tpl">Template</label>
+        <select id="tpl"></select>
+        <button class="btn quiet compact" id="apply" type="button">Apply</button>
+      </div>
+      <p class="hint merge-help">Available fields: {{business}} {{firstName}} {{city}} {{myName}}</p>
+      <div class="row">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" placeholder="Quick question for {{business}}">
+      </div>
+      <textarea id="body" placeholder="Write the message. Lead variables are filled separately for each recipient."></textarea>
+      <div class="actions">
+        <button class="btn quiet" id="preview" type="button">Preview selected</button>
+        <button class="btn primary" id="sendBatch" type="button">Send selected (0)</button>
+        <span class="msg" id="m"></span>
+      </div>
+      <p class="hint compliance-note">The unsubscribe line and postal address are appended automatically. Set them in <a href="/admin/">Admin</a>.</p>
+    </section>
+
+    <aside class="panel campaign-queue-panel">
+      <div class="campaign-section-head">
+        <div><h2>Recipient queue</h2><p class="hint">Select up to 10 leads for this batch.</p></div>
+        <button class="btn quiet compact" id="addLeads" type="button">Add leads</button>
+      </div>
+      <div id="queue" class="campaign-queue"></div>
+      <div class="manual-recipient">
+        <b>Manual test recipient</b>
+        <div class="manual-recipient-row">
+          <input type="email" id="manualTo" placeholder="name@example.com">
+          <button class="btn quiet compact" id="addManual" type="button">Add</button>
+        </div>
+      </div>
+    </aside>
+  </div>
 
   <div class="preview" id="pv" hidden></div>
+
+  <section class="panel campaign-tracking">
+    <div class="campaign-section-head">
+      <div><h2>Campaign activity</h2><p class="hint">Track waiting, replied, bounced, and failed emails.</p></div>
+      <button class="btn quiet compact" id="refreshActivity" type="button">Refresh</button>
+    </div>
+    <div class="tablewrap">
+      <table class="grid small">
+        <thead><tr><th>Sent</th><th>Lead</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Update</th></tr></thead>
+        <tbody id="activityRows"><tr><td colspan="6" class="muted">Loading campaign activity…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="hint campaign-tracking-note">For this test version, replies are marked manually. Automatic reply detection requires receiving email for the Onyx domain and a Resend inbound webhook.</p>
+  </section>
 </div>
 
 <script src="/assets/config.js"></script>
 <script src="/assets/onyx.js"></script>
 <script>
 Onyx.requireAuth(function (user) {
-  var CFG = Onyx.cfg, TPL = window.ONYX_TEMPLATES || [], lead = null;
-
-  document.getElementById('domain').textContent = '@' + CFG.SEND_DOMAIN;
-
-  var fromSel = document.getElementById('from');
-  var mine = String(user.email || '').split('@')[0];
-  fromSel.value = mine || (CFG.FROM_OPTIONS || [])[0] || 'customerrelations';
-
-  function localPart() {
-    return String(fromSel.value || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
-  }
-  function updateSenderHint() {
-    var local = localPart();
-    document.getElementById('domain').textContent = local ? local + '@' + CFG.SEND_DOMAIN : '@' + CFG.SEND_DOMAIN;
-  }
-  fromSel.addEventListener('input', updateSenderHint);
-  updateSenderHint();
-
+  var CFG = Onyx.cfg, TPL = window.ONYX_TEMPLATES || [], queue = [];
+  var fromInput = document.getElementById('from'), replyInput = document.getElementById('replyTo');
   var tplSel = document.getElementById('tpl');
+
+  function cleanLocal(value) {
+    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  }
+  function fullAddress(input) {
+    var local = cleanLocal(input.value);
+    return local ? local + '@' + CFG.SEND_DOMAIN : '@' + CFG.SEND_DOMAIN;
+  }
+  function updateAddresses() {
+    document.getElementById('fromAddress').textContent = fullAddress(fromInput);
+    document.getElementById('replyAddress').textContent = fullAddress(replyInput);
+  }
+
+  var defaultSender = (CFG.FROM_OPTIONS || [])[0] || 'customerrelations';
+  fromInput.value = defaultSender;
+  replyInput.value = defaultSender;
+  document.getElementById('senderOptions').innerHTML = (CFG.FROM_OPTIONS || []).map(function (v) {
+    return '<option value="' + Onyx.esc(v) + '"></option>';
+  }).join('');
+  fromInput.addEventListener('input', updateAddresses);
+  replyInput.addEventListener('input', updateAddresses);
+  updateAddresses();
+
   tplSel.innerHTML = '<option value="">— pick a template —</option>';
   TPL.forEach(function (t, i) {
-    var o = document.createElement('option');
-    o.value = i; o.textContent = t.name;
-    tplSel.appendChild(o);
+    var option = document.createElement('option');
+    option.value = i; option.textContent = t.name; tplSel.appendChild(option);
   });
 
-  var id = Onyx.qs('id');
-  if (id) {
-    Onyx.sheet('getLead', { id: id }).then(function (r) {
-      if (!r.ok) return;
-      lead = r.lead;
-      document.getElementById('to').value = lead.email || '';
-      document.getElementById('who').textContent = lead.name;
-    });
-  }
-
-  function merge(t) {
-    var l = lead || {};
-    var first = String(l.dmName || '').trim().split(/\s+/)[0] || 'there';
-    return String(t || '')
+  function mergeFor(template, lead) {
+    var l = lead || {}, first = String(l.dmName || '').trim().split(/\s+/)[0] || 'there';
+    return String(template || '')
       .replace(/\{\{business\}\}/g, l.name || 'your practice')
       .replace(/\{\{firstName\}\}/g, first)
       .replace(/\{\{city\}\}/g, l.city || 'your area')
-      .replace(/\{\{myName\}\}/g, user.name || '');
+      .replace(/\{\{myName\}\}/g, user.name || 'Onyx Medical Groups');
   }
 
-  document.getElementById('apply').addEventListener('click', function () {
-    var i = tplSel.value;
-    if (i === '') return;
-    document.getElementById('subject').value = merge(TPL[i].subject);
-    document.getElementById('body').value = merge(TPL[i].body);
+  function selected() { return queue.filter(function (item) { return item.selected; }); }
+  function renderQueue() {
+    var element = document.getElementById('queue');
+    if (!queue.length) {
+      element.innerHTML = '<div class="campaign-empty">Open a lead from Pipeline or add leads here.</div>';
+    } else {
+      element.innerHTML = queue.map(function (item, index) {
+        return '<label class="campaign-recipient"><input type="checkbox" data-index="' + index + '"' + (item.selected ? ' checked' : '') + '>' +
+          '<span><b>' + Onyx.esc(item.name || 'Manual recipient') + '</b><small>' + Onyx.esc(item.email || '') + '</small></span>' +
+          '<button class="link campaign-remove" type="button" data-remove="' + index + '">Remove</button></label>';
+      }).join('');
+    }
+    document.getElementById('sendBatch').textContent = 'Send selected (' + selected().length + ')';
+  }
+
+  function addToQueue(lead) {
+    if (!lead || !lead.email || queue.some(function (item) { return String(item.email).toLowerCase() === String(lead.email).toLowerCase(); })) return;
+    if (queue.length >= 10) return;
+    queue.push(Object.assign({}, lead, { selected: true }));
+    renderQueue();
+  }
+
+  document.getElementById('queue').addEventListener('change', function (event) {
+    if (!event.target.matches('input[type=checkbox]')) return;
+    var item = queue[Number(event.target.dataset.index)];
+    if (item) item.selected = event.target.checked;
+    renderQueue();
+  });
+  document.getElementById('queue').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-remove]');
+    if (!button) return;
+    queue.splice(Number(button.dataset.remove), 1); renderQueue();
   });
 
-  function html(text) {
+  document.getElementById('addLeads').addEventListener('click', function () {
+    var button = this; button.disabled = true; Onyx.msg('m', 'Finding leads with email addresses…');
+    Onyx.sheet('listLeads', { emailStatus: 'has', size: 40, page: 0 }).then(function (result) {
+      button.disabled = false;
+      if (!result.ok) { Onyx.msg('m', result.error || 'Could not load leads.', 'bad'); return; }
+      (result.leads || []).filter(function (lead) { return ['Won','Lost','Do Not Contact'].indexOf(lead.stage) < 0; }).forEach(addToQueue);
+      Onyx.msg('m', queue.length ? queue.length + ' recipients ready.' : 'No eligible leads with email addresses found.', queue.length ? 'good' : 'warn');
+    });
+  });
+
+  document.getElementById('addManual').addEventListener('click', function () {
+    var input = document.getElementById('manualTo'), email = input.value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) { Onyx.msg('m', 'Enter a valid test recipient.', 'bad'); return; }
+    if (queue.length >= 10) { Onyx.msg('m', 'This batch already has 10 recipients.', 'bad'); return; }
+    addToQueue({ id: '', name: 'Manual test', email: email, dmName: '', city: '' }); input.value = '';
+  });
+
+  document.getElementById('apply').addEventListener('click', function () {
+    if (tplSel.value === '') return;
+    document.getElementById('subject').value = TPL[tplSel.value].subject;
+    document.getElementById('body').value = TPL[tplSel.value].body;
+  });
+
+  function emailHtml(value) {
     var foot = [];
     if (CFG.UNSUBSCRIBE_LINE) foot.push(Onyx.esc(CFG.UNSUBSCRIBE_LINE));
     if (CFG.POSTAL_ADDRESS) foot.push(Onyx.esc(CFG.POSTAL_ADDRESS));
-    return '<div style="font:14px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111">' +
-      Onyx.esc(text).replace(/\n/g, '<br>') +
-      (foot.length ? '<hr style="border:0;border-top:1px solid #ddd;margin:24px 0 10px">' +
-        '<div style="font-size:11px;color:#888">' + foot.join('<br>') + '</div>' : '') + '</div>';
+    return '<div style="font:14px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111">' + Onyx.esc(value).replace(/\n/g, '<br>') +
+      (foot.length ? '<hr style="border:0;border-top:1px solid #ddd;margin:24px 0 10px"><div style="font-size:11px;color:#888">' + foot.join('<br>') + '</div>' : '') + '</div>';
+  }
+
+  function validationError() {
+    if (!cleanLocal(fromInput.value)) return 'Enter a sender name.';
+    if (!cleanLocal(replyInput.value)) return 'Enter a reply-to name.';
+    if (!selected().length) return 'Select at least one recipient.';
+    if (!document.getElementById('subject').value.trim()) return 'Add a subject line.';
+    if (!document.getElementById('body').value.trim()) return 'The message is empty.';
+    if (!CFG.POSTAL_ADDRESS) return 'Add a postal address in Admin first.';
+    return '';
   }
 
   document.getElementById('preview').addEventListener('click', function () {
-    var pv = document.getElementById('pv');
-    pv.hidden = false;
-    pv.innerHTML = '<div style="color:#666;font-size:12px;margin-bottom:12px">' +
-      Onyx.esc(localPart() + '@' + CFG.SEND_DOMAIN) + ' &rarr; ' +
-      Onyx.esc(document.getElementById('to').value) +
-      '<br><b style="color:#111;font-size:14px">' + Onyx.esc(document.getElementById('subject').value) +
-      '</b></div>' + html(document.getElementById('body').value);
+    var item = selected()[0];
+    if (!item) { Onyx.msg('m', 'Select a recipient to preview.', 'bad'); return; }
+    var subject = mergeFor(document.getElementById('subject').value, item);
+    var body = mergeFor(document.getElementById('body').value, item);
+    var preview = document.getElementById('pv'); preview.hidden = false;
+    preview.innerHTML = '<div style="color:#666;font-size:12px;margin-bottom:12px">' + Onyx.esc(fullAddress(fromInput)) + ' &rarr; ' + Onyx.esc(item.email) +
+      '<br><b style="color:#111;font-size:14px">' + Onyx.esc(subject) + '</b></div>' + emailHtml(body);
   });
 
-  document.getElementById('send').addEventListener('click', function () {
-    var to = document.getElementById('to').value.trim();
-    var subject = document.getElementById('subject').value.trim();
-    var body = document.getElementById('body').value;
-
-    var sender = localPart();
-    if (!to) { Onyx.msg('m', 'Who is this going to?', 'bad'); return; }
-    if (!sender) { Onyx.msg('m', 'Enter the sender name before @' + CFG.SEND_DOMAIN + '.', 'bad'); return; }
-    if (!subject) { Onyx.msg('m', 'Add a subject line.', 'bad'); return; }
-    if (!body.trim()) { Onyx.msg('m', 'The message is empty.', 'bad'); return; }
-    if (!CFG.POSTAL_ADDRESS) { Onyx.msg('m', 'Add a postal address in Admin first — CAN-SPAM requires it.', 'bad'); return; }
-    if (/\{\{/.test(subject + body)) { Onyx.msg('m', 'There is still an unfilled {{merge field}}.', 'bad'); return; }
-
-    var btn = this;
-    btn.disabled = true;
-    Onyx.msg('m', 'Sending...');
-
-    Onyx.worker('email', {
-      to: to, subject: subject, html: html(body), text: body,
-      fromLocal: sender, fromName: user.name || 'Onyx Medical Groups',
-      replyTo: user.email || ''
-    }).then(function (r) {
-      btn.disabled = false;
-      if (!r.ok) { Onyx.msg('m', r.error || 'Send failed.', 'bad'); return; }
-      Onyx.msg('m', 'Sent to ' + to + '.', 'good');
-      Onyx.sheet('logSend', {
-        id: lead ? lead.id : '', to: to, fromLocal: sender,
-        subject: subject, resendId: r.id, status: 'sent'
-      });
+  document.getElementById('sendBatch').addEventListener('click', function () {
+    var error = validationError();
+    if (error) { Onyx.msg('m', error, 'bad'); return; }
+    var button = this, messages = selected().slice(0, 10).map(function (item) {
+      var subject = mergeFor(document.getElementById('subject').value, item);
+      var body = mergeFor(document.getElementById('body').value, item);
+      return { leadId: item.id || '', to: item.email, subject: subject, html: emailHtml(body), text: body,
+        fromLocal: cleanLocal(fromInput.value), replyLocal: cleanLocal(replyInput.value), fromName: user.name || 'Onyx Medical Groups' };
+    });
+    button.disabled = true; Onyx.msg('m', 'Sending ' + messages.length + ' email' + (messages.length === 1 ? '' : 's') + '…');
+    Onyx.campaign('sendBatch', { messages: messages }).then(function (result) {
+      button.disabled = false;
+      if (!result.ok && !result.sent) { Onyx.msg('m', result.error || 'The campaign could not be sent.', 'bad'); return; }
+      Onyx.msg('m', result.sent + ' sent' + (result.failed ? ', ' + result.failed + ' failed.' : '.'), result.failed ? 'warn' : 'good');
+      loadActivity();
     });
   });
+
+  function statusLabel(status) {
+    return { waiting: 'Awaiting reply', replied: 'Replied', bounced: 'Bounced', failed: 'Failed', sent: 'Sent' }[status] || status || 'Awaiting reply';
+  }
+  function loadActivity() {
+    Onyx.campaign('listSends', {}).then(function (result) {
+      var element = document.getElementById('activityRows');
+      if (!result.ok) { element.innerHTML = '<tr><td colspan="6" class="muted">' + Onyx.esc(result.error || 'Could not load activity.') + '</td></tr>'; return; }
+      if (!(result.sends || []).length) { element.innerHTML = '<tr><td colspan="6" class="muted">No campaign emails sent yet.</td></tr>'; return; }
+      element.innerHTML = result.sends.map(function (send) {
+        var action = send.status === 'replied'
+          ? '<button class="btn quiet compact" data-status="waiting" data-send-id="' + send.id + '">Undo replied</button>'
+          : '<button class="btn ok compact" data-status="replied" data-send-id="' + send.id + '">Mark replied</button>';
+        return '<tr><td>' + Onyx.esc(String(send.at || '').slice(0, 16).replace('T', ' ')) + '</td><td>' + Onyx.esc(send.leadName || 'Manual test') + '</td>' +
+          '<td>' + Onyx.esc(send.recipient) + '</td><td>' + Onyx.esc(send.subject) + '</td><td><span class="campaign-status ' + Onyx.esc(send.status || 'waiting') + '">' + Onyx.esc(statusLabel(send.status)) + '</span></td><td>' + action + '</td></tr>';
+      }).join('');
+    });
+  }
+
+  document.getElementById('activityRows').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-send-id]');
+    if (!button) return;
+    button.disabled = true;
+    Onyx.campaign('setSendStatus', { id: button.dataset.sendId, status: button.dataset.status }).then(loadActivity);
+  });
+  document.getElementById('refreshActivity').addEventListener('click', loadActivity);
+
+  var leadId = Onyx.qs('id');
+  if (leadId) {
+    Onyx.sheet('getLead', { id: leadId }).then(function (result) {
+      if (!result.ok) { Onyx.msg('m', result.error || 'Could not load the lead.', 'bad'); return; }
+      addToQueue(result.lead);
+    });
+  }
+  renderQueue(); loadActivity();
 });
 </script>
 </body>

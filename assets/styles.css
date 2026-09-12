@@ -315,6 +315,22 @@ table.grid{font-size:12.5px}
 .auth-card .sub{color:#687787}
 .auth-foot{border-color:#e3e8ed}
 
+/* Email campaign workspace */
+.campaign-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(320px,.8fr);gap:18px;align-items:start}
+.campaign-composer,.campaign-queue-panel{margin:0}.campaign-composer h2,.campaign-queue-panel h2,.campaign-tracking h2{margin-bottom:4px}
+.campaign-address{flex:0 0 250px;font-weight:650;color:#344454}.merge-help{margin:-3px 0 12px 85px}
+.compliance-note{margin-top:12px}.campaign-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.campaign-section-head h2{margin-bottom:4px}.campaign-queue{display:grid;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.campaign-recipient{display:flex;align-items:center;gap:10px;padding:10px 11px;border-bottom:1px solid #e8ebee;background:#fff;cursor:pointer}
+.campaign-recipient:last-child{border-bottom:0}.campaign-recipient:hover{background:#f7f9fb}.campaign-recipient>input{flex:0 0 auto}
+.campaign-recipient>span{flex:1;min-width:0}.campaign-recipient b,.campaign-recipient small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.campaign-recipient b{font-size:12px}.campaign-recipient small{color:var(--dim);font-size:10.5px;margin-top:2px}.campaign-remove{flex:0 0 auto}
+.campaign-empty{padding:34px 16px;text-align:center;color:var(--dim);font-size:12px}.manual-recipient{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.manual-recipient>b{display:block;color:#526170;font-size:10.5px;text-transform:uppercase;letter-spacing:.075em;margin-bottom:7px}.manual-recipient-row{display:flex;gap:7px}.manual-recipient-row input{min-width:0;flex:1}
+.campaign-tracking{margin-top:18px}.campaign-tracking .tablewrap{margin-top:4px}.campaign-tracking-note{margin-top:12px}
+.campaign-status{display:inline-block;border:1px solid #d5dde5;border-radius:3px;padding:2px 6px;font-size:10.5px;font-weight:700;background:#f3f6f8;color:#526170}
+.campaign-status.replied{background:#ecf8f1;color:#0b6a40;border-color:#b9e2cc}.campaign-status.bounced,.campaign-status.failed{background:#fdf0f2;color:#a11f37;border-color:#f0c7ce}.campaign-status.waiting{background:#fff7e6;color:#8a5a00;border-color:#f0d59a}
+
 @media(max-width:900px){
   .top{padding:0 16px;gap:12px}
   .tabs{overflow-x:auto}
@@ -322,7 +338,10 @@ table.grid{font-size:12.5px}
   .wrap{padding:20px 16px 48px}
   .page-head h1{font-size:21px}
   .toolbar{padding:10px}
+  .campaign-layout{grid-template-columns:1fr}.campaign-address{flex:1 1 100%;margin-left:85px}.campaign-tracking{overflow:hidden}
 }
+
+@media(max-width:600px){.campaign-composer .row{display:grid;grid-template-columns:72px 1fr}.campaign-composer .row>label{width:auto}.campaign-composer .row>input,.campaign-composer .row>select{min-width:0}.campaign-address{grid-column:2;margin-left:0}.merge-help{margin-left:0}.campaign-tracking .tablewrap{overflow-x:auto}.campaign-tracking table{min-width:780px}}
 
 /* Dial Mobile Mode */
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

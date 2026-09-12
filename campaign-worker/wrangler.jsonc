@@ -1,0 +1,18 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "onyx-campaigns",
+  "main": "index.js",
+  "compatibility_date": "2026-09-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "onyx-crm",
+      "database_id": "5c55a53a-139d-493b-aea7-51a251fa6215"
+    }
+  ]
+}

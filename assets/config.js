@@ -7,6 +7,7 @@ window.ONYX_CONFIG = {
   SHEET_SECRET: 'test',                 // protected by the ONYX CRM Worker
   WORKER_URL: 'https://email.edgeformmedia.workers.dev/',
   WORKER_SECRET: 'test',                // must match ONYX_SECRET in the Worker
+  CAMPAIGN_WORKER_URL: 'https://onyx-campaigns.edgeformmedia.workers.dev/',
   // The verified Resend domain. The campaign composer appends this to the
   // local sender name a rep enters (for example, sales@onyxmedicalgroups.com).
   SEND_DOMAIN: 'onyxmedicalgroups.com',

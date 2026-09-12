@@ -1,0 +1,143 @@
+const SEND_DOMAIN = 'onyxmedicalgroups.com';
+const MAX_BATCH_SIZE = 10;
+const DAILY_CAP = 400;
+const ALLOWED_ORIGINS = new Set([
+  'https://onyx.edgeform-media.com',
+  'https://crm.edgeform-media.com',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080'
+]);
+
+function text(value) { return String(value ?? '').trim(); }
+function now() { return new Date().toISOString(); }
+
+function corsHeaders(request) {
+  const origin = request.headers.get('Origin') || '';
+  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : 'https://onyx.edgeform-media.com';
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Vary': 'Origin'
+  };
+}
+
+function json(data, status, headers) {
+  return new Response(JSON.stringify(data), { status: status || 200, headers });
+}
+
+async function authenticatedUser(env, token) {
+  if (!token) return null;
+  return env.DB.prepare("SELECT u.username,u.name,u.email,u.role FROM sessions s JOIN users u ON u.username=s.username WHERE s.token=? AND s.expires>? AND u.active=1")
+    .bind(token, now()).first();
+}
+
+function validEmail(value) {
+  return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(text(value));
+}
+
+function localPart(value) {
+  return text(value).toLowerCase().replace(/[^a-z0-9._-]/g, '');
+}
+
+async function sendThroughResend(env, message, user) {
+  const to = text(message.to), subject = text(message.subject);
+  const html = text(message.html), plain = text(message.text);
+  const fromLocal = localPart(message.fromLocal);
+  const replyLocal = localPart(message.replyLocal || fromLocal);
+  if (!validEmail(to)) return { ok: false, error: 'Invalid recipient address.' };
+  if (!fromLocal) return { ok: false, error: 'Sender name is required.' };
+  if (!subject) return { ok: false, error: 'Subject is required.' };
+  if (!html && !plain) return { ok: false, error: 'Message body is empty.' };
+
+  const fromName = text(message.fromName || user.name || 'Onyx Medical Groups').replace(/["<>\r\n]/g, '').slice(0, 60);
+  const payload = {
+    from: `${fromName} <${fromLocal}@${SEND_DOMAIN}>`,
+    to: [to],
+    subject,
+    reply_to: `${replyLocal || fromLocal}@${SEND_DOMAIN}`
+  };
+  if (html) payload.html = html;
+  if (plain) payload.text = plain;
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json();
+  return response.ok ? { ok: true, id: result.id } : { ok: false, error: result.message || 'Resend rejected the email.' };
+}
+
+async function recordResult(env, user, message, result) {
+  const at = now(), leadId = text(message.leadId), recipient = text(message.to);
+  const status = result.ok ? 'waiting' : 'failed';
+  await env.DB.prepare('INSERT INTO sends(at,user,lead_id,recipient,from_local,subject,resend_id,status) VALUES(?,?,?,?,?,?,?,?)')
+    .bind(at, user.username, leadId, recipient, localPart(message.fromLocal), text(message.subject), result.id || '', status).run();
+  if (leadId && result.ok) {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE leads SET last_contacted=?,updated_at=?,stage=CASE WHEN stage IN ('New Lead','Ready to Call') THEN 'Contacted' ELSE stage END WHERE id=?").bind(at, at, leadId),
+      env.DB.prepare("INSERT INTO activity(at,user,lead_id,lead_name,type,detail) SELECT ?,?,id,name,'email',? FROM leads WHERE id=?").bind(at, user.name || user.username, text(message.subject), leadId)
+    ]);
+  }
+  return { leadId, to: recipient, ok: result.ok, id: result.id || '', error: result.error || '', status };
+}
+
+async function sendBatch(env, body, user) {
+  if (!env.RESEND_API_KEY) return { ok: false, error: 'RESEND_API_KEY is not configured on the Campaign Worker.' };
+  const messages = Array.isArray(body.messages) ? body.messages.slice(0, MAX_BATCH_SIZE) : [];
+  if (!messages.length) return { ok: false, error: 'Add at least one recipient.' };
+  const dayStart = now().slice(0, 10) + 'T00:00:00.000Z';
+  const used = await env.DB.prepare("SELECT count(*) count FROM sends WHERE at>=? AND status<>'failed'").bind(dayStart).first();
+  if ((Number(used && used.count) || 0) + messages.length > DAILY_CAP) return { ok: false, error: `Daily cap of ${DAILY_CAP} would be exceeded.` };
+
+  const results = [];
+  for (const message of messages) {
+    try {
+      results.push(await recordResult(env, user, message, await sendThroughResend(env, message, user)));
+    } catch (error) {
+      console.error(JSON.stringify({ event: 'campaign_send_failed', recipient: text(message.to), message: text(error && error.message) }));
+      results.push(await recordResult(env, user, message, { ok: false, error: 'The send request failed.' }));
+    }
+  }
+  return { ok: results.some(result => result.ok), sent: results.filter(result => result.ok).length, failed: results.filter(result => !result.ok).length, results };
+}
+
+async function listSends(env) {
+  const rows = (await env.DB.prepare("SELECT s.id,s.at,s.user,s.lead_id leadId,coalesce(l.name,'') leadName,s.recipient,s.from_local fromLocal,s.subject,s.resend_id resendId,s.status FROM sends s LEFT JOIN leads l ON l.id=s.lead_id ORDER BY s.at DESC LIMIT 100").all()).results;
+  return { ok: true, sends: rows };
+}
+
+async function setSendStatus(env, body, user) {
+  const status = text(body.status);
+  if (!['waiting', 'replied', 'bounced', 'failed'].includes(status)) return { ok: false, error: 'Invalid email status.' };
+  const row = await env.DB.prepare('SELECT * FROM sends WHERE id=?').bind(Number(body.id) || 0).first();
+  if (!row) return { ok: false, error: 'Email record not found.' };
+  await env.DB.prepare('UPDATE sends SET status=? WHERE id=?').bind(status, row.id).run();
+  if (row.lead_id) {
+    await env.DB.prepare("INSERT INTO activity(at,user,lead_id,lead_name,type,detail) SELECT ?,?,id,name,'email-status',? FROM leads WHERE id=?")
+      .bind(now(), user.name || user.username, 'Email marked ' + status, row.lead_id).run();
+  }
+  return { ok: true };
+}
+
+export default {
+  async fetch(request, env) {
+    const headers = corsHeaders(request);
+    if (request.method === 'OPTIONS') return new Response(null, { headers });
+    if (request.method !== 'POST') return json({ ok: false, error: 'POST only.' }, 405, headers);
+    try {
+      const body = await request.json();
+      const user = await authenticatedUser(env, text(body.token));
+      if (!user) return json({ ok: false, error: 'SESSION_EXPIRED' }, 401, headers);
+      if (body.action === 'sendBatch') return json(await sendBatch(env, body, user), 200, headers);
+      if (body.action === 'listSends') return json(await listSends(env), 200, headers);
+      if (body.action === 'setSendStatus') return json(await setSendStatus(env, body, user), 200, headers);
+      return json({ ok: false, error: 'Unknown campaign action.' }, 400, headers);
+    } catch (error) {
+      console.error(JSON.stringify({ event: 'campaign_worker_error', message: text(error && error.message) }));
+      return json({ ok: false, error: 'The campaign service could not complete the request.' }, 500, headers);
+    }
+  }
+};
