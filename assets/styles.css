@@ -97,6 +97,7 @@ a.stat:hover{border-color:var(--line2)}
 .toolbar input[type=search]{flex:1;min-width:220px}
 .toolbar select{width:auto;min-width:140px}
 .city-picker{position:relative;min-width:230px;flex:1 1 260px}.city-picker input{width:100%}.city-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}.city-chip{border:1px solid #3d4f74;border-radius:999px;background:#17233a;color:#cdd8ed;padding:3px 8px;font-size:11px;cursor:pointer}.city-chip:hover{background:#223353}
+.city-menu{margin:-5px 0 14px}.city-menu summary{display:inline-flex;cursor:pointer;color:var(--accent2);font-size:12px}.city-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:150px;overflow:auto;padding:2px}.city-list button{border:1px solid var(--line2);border-radius:7px;background:var(--panel);color:var(--text);padding:5px 8px;font-size:11px;cursor:pointer}.city-list button:hover{border-color:var(--accent)}.city-list span{color:var(--dim);margin-left:3px}
 .bulk-research{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r);background:var(--panel)}.bulk-research>div{margin-right:auto;min-width:205px}.bulk-research b{font-size:13px}.bulk-research label{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:12px;white-space:nowrap}.bulk-research label input{width:82px;padding:6px 8px}.bulk-research #creditRate{width:96px}.bulk-research .hint{max-width:340px}.bulk-research .msg{width:100%;margin:0}
 
 /* table */

@@ -26,10 +26,13 @@
     <select id="emailStatus"><option value="">Any email status</option><option value="has">Has email</option><option value="missing">No email</option></select>
     <label class="chk"><input type="checkbox" id="chains"> Hide chains</label>
     <label class="chk"><input type="checkbox" id="noResearch"> Not researched</label>
+    <button class="btn quiet compact" id="researchToggle" type="button" aria-expanded="false" aria-controls="bulkResearch">Auto research</button>
     <button class="btn quiet compact" id="reload">Refresh</button>
   </div>
 
-  <section class="bulk-research" aria-labelledby="bulkResearchTitle">
+  <details class="city-menu" id="cityMenu"><summary>Available cities</summary><div id="cityList" class="city-list"></div></details>
+
+  <section class="bulk-research" id="bulkResearch" aria-labelledby="bulkResearchTitle" hidden>
     <div><b id="bulkResearchTitle">Auto research</b><p class="hint">Researches the next unresearched leads matching the filters above, one at a time.</p></div>
     <label>Next <input id="researchAmount" type="number" min="1" max="1000" value="10" inputmode="numeric"> leads</label>
     <label>Cost / credit <input id="creditRate" type="number" min="0" step="0.001" placeholder="$ optional" inputmode="decimal"></label>
@@ -125,6 +128,9 @@ Onyx.requireAuth(function () {
       document.getElementById('cityOptions').innerHTML = cityIndex.map(function (x) {
         return '<option value="' + Onyx.esc(x.city) + '">' + Onyx.esc(x.city) + ' (' + x.count + ')</option>';
       }).join('');
+      document.getElementById('cityList').innerHTML = cityIndex.map(function (x) {
+        return '<button type="button" data-city="' + Onyx.esc(x.city) + '">' + Onyx.esc(x.city) + ' <span>' + x.count + '</span></button>';
+      }).join('');
     }
     renderCities(); updateEstimate();
     load();
@@ -183,10 +189,14 @@ Onyx.requireAuth(function () {
   document.getElementById('cityInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); if (!addCity(this.value)) this.setCustomValidity('Choose a city from the available list.'); }
   });
+  document.getElementById('cityInput').addEventListener('change', function () { if (this.value) addCity(this.value); });
   document.getElementById('cityInput').addEventListener('input', function () { this.setCustomValidity(''); });
   document.getElementById('cityChips').addEventListener('click', function (e) {
     var button = e.target.closest('[data-city]'); if (!button) return;
     selectedCities = selectedCities.filter(function (city) { return city !== button.dataset.city; }); renderCities(); page = 0; load();
+  });
+  document.getElementById('cityList').addEventListener('click', function (e) {
+    var button = e.target.closest('[data-city]'); if (button) addCity(button.dataset.city);
   });
   document.getElementById('reload').addEventListener('click', load);
   document.getElementById('prev').addEventListener('click', function () { if (page > 0) { page--; load(); } });
@@ -194,6 +204,10 @@ Onyx.requireAuth(function () {
 
   document.getElementById('researchAmount').addEventListener('input', updateEstimate);
   document.getElementById('creditRate').addEventListener('input', function () { try { localStorage.setItem('onyx_research_credit_rate', this.value); } catch (_) { } updateEstimate(); });
+  document.getElementById('researchToggle').addEventListener('click', function () {
+    var panel = document.getElementById('bulkResearch'), open = panel.hidden;
+    panel.hidden = !open; this.setAttribute('aria-expanded', String(open)); this.textContent = open ? 'Hide auto research' : 'Auto research';
+  });
 
   function fieldsFrom(data, lead) {
     var map = [
