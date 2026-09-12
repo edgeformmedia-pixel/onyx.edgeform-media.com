@@ -2,7 +2,10 @@ const STAGES = ['New Lead', 'Researching', 'Ready to Call', 'Contacted', 'Intere
 const SITE_URL = 'https://onyx.edgeform-media.com';
 const EMAIL_WORKER = 'https://email.edgeformmedia.workers.dev/';
 const CORS = { 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type, accept', 'content-type': 'application/json; charset=utf-8' };
-const indexed = ['name','category','phone','website','city','state','rating','reviewCount','isNationalChain','dmName','dmTitle','email','leadScore','stage','owner','nextActionDate','lastContacted','enrichedAt','needsHumanReview','scrapedAt'];
+const indexed = ['name','category','phone','website','city','state','rating','reviewCount','isNationalChain','dmName','dmTitle','email','leadScore','stage','owner','nextActionDate','lastContacted','enrichedAt','needsHumanReview','scrapedAt',
+  // Kept in the JSON payload rather than their own D1 columns, but explicitly
+  // whitelisted here so both individual and batch research persist their work.
+  'dmConfidence','dmEvidence','emailStatus','emailConfidence','directPhone','linkedin','instagram','facebook','services','existingEquipment','expansionSignals','reviewOpportunity','reviewFindings','reviewEvidence','serviceGap','serviceGapEvidence','buyerFit','scoreReasoning','salesAngle','angleEvidence','bestChannel','openingAngle','personalization','suggestedMessage','sources','emailCandidates','phoneCandidates','ownerCandidates','ownerSources','researchAttempts','researchSummary'];
 
 function corsFor(request) { const origin=request.headers.get('origin')||''; const allowed=origin===SITE_URL||/^chrome-extension:\/\/[a-z]+$/i.test(origin)?origin:SITE_URL; return {...CORS,'access-control-allow-origin':allowed,'vary':'Origin'}; }
 function reply(body, status = 200, headers = {...CORS,'access-control-allow-origin':SITE_URL}) { return new Response(JSON.stringify(body), { status, headers }); }
@@ -93,7 +96,30 @@ async function handle(env, b) {
   if (b.action==='requestAccess') { const email=text(b.email).toLowerCase(), first=text(b.firstName), last=text(b.lastName); if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email))return {ok:false,error:'That email does not look right.'}; if(!first||!last)return {ok:false,error:'First and last name are both required.'}; if(!email.endsWith('@edgeform-media.com'))return {ok:false,error:'Access is limited to edgeform-media.com addresses.'}; const user=await env.DB.prepare('SELECT username FROM users WHERE lower(email)=?').bind(email).first(); if(user)return {ok:false,error:'There is already an account for that address. Try signing in.'}; const pending=await env.DB.prepare("SELECT id FROM requests WHERE lower(email)=? AND status='pending'").bind(email).first(); if(pending)return {ok:true,pending:true,message:'Your request is already waiting on an admin.'}; await env.DB.prepare('INSERT INTO requests(id,email,first_name,last_name,note,status,requested_at) VALUES(?,?,?,?,?,?,?)').bind(id().slice(0,8),email,first,last,text(b.note).slice(0,400),'pending',now()).run(); return {ok:true,message:'Request sent. An admin will approve you shortly.'}; }
   const who=await userFor(env,b.token); if(!who)return {ok:false,error:'SESSION_EXPIRED'};
   if(b.action==='me')return {ok:true,user:who}; if(b.action==='logout'){await env.DB.prepare('DELETE FROM sessions WHERE token=?').bind(b.token).run();return {ok:true};}
-  if(b.action==='listLeads'){const terms=[],p=[]; if(b.stage){terms.push('stage=?');p.push(b.stage)}if(b.owner){terms.push('owner=?');p.push(b.owner)}if(b.hideChains)terms.push("coalesce(is_national_chain,'') <> 'Yes'");if(b.needsEmail)terms.push("coalesce(email,'')='' ");if(b.needsResearch)terms.push("coalesce(enriched_at,'')='' ");if(text(b.q)){terms.push("lower(name||' '||city||' '||dm_name||' '||phone||' '||email||' '||category) LIKE ?");p.push('%'+text(b.q).toLowerCase()+'%')} const where=terms.length?' WHERE '+terms.join(' AND '):'';const total=(await env.DB.prepare('SELECT count(*) n FROM leads'+where).bind(...p).first()).n;const size=Math.min(200,Math.max(1,Number(b.size)||50)),page=Math.max(0,Number(b.page)||0);const rows=(await env.DB.prepare('SELECT * FROM leads'+where+' ORDER BY lead_score DESC, updated_at DESC LIMIT ? OFFSET ?').bind(...p,size,page*size).all()).results.map(x=>summary(leadFrom(x)));return {ok:true,total,page,leads:rows};}
+  if(b.action==='pipelineFacets'){
+    const cities=(await env.DB.prepare("SELECT trim(city) city, count(*) count FROM leads WHERE trim(coalesce(city,''))<>'' GROUP BY lower(trim(city)) ORDER BY lower(trim(city))").all()).results;
+    return {ok:true,cities:cities.map(r=>({city:r.city,count:Number(r.count)||0}))};
+  }
+  if(b.action==='listLeads'){
+    const terms=[],p=[];
+    if(b.stage){terms.push('stage=?');p.push(b.stage)}
+    if(b.owner){terms.push('owner=?');p.push(b.owner)}
+    if(b.hideChains)terms.push("coalesce(is_national_chain,'') <> 'Yes'");
+    if(b.emailStatus==='missing'||b.needsEmail)terms.push("trim(coalesce(email,''))='' ");
+    if(b.emailStatus==='has')terms.push("trim(coalesce(email,''))<>'' ");
+    if(b.decisionMakerStatus==='missing')terms.push("(trim(coalesce(dm_name,''))='' OR lower(trim(dm_name))='unknown')");
+    if(b.decisionMakerStatus==='has')terms.push("trim(coalesce(dm_name,''))<>'' AND lower(trim(dm_name))<>'unknown'");
+    if(b.needsResearch)terms.push("coalesce(enriched_at,'')='' ");
+    const cities=Array.isArray(b.cities)?b.cities.map(text).filter(Boolean).slice(0,100):[];
+    if(cities.length){terms.push('lower(trim(city)) IN ('+cities.map(()=>'?').join(',')+')');p.push(...cities.map(x=>x.toLowerCase()))}
+    if(text(b.q)){terms.push("lower(name||' '||city||' '||dm_name||' '||phone||' '||email||' '||category) LIKE ?");p.push('%'+text(b.q).toLowerCase()+'%')}
+    const where=terms.length?' WHERE '+terms.join(' AND '):'';
+    const total=(await env.DB.prepare('SELECT count(*) n FROM leads'+where).bind(...p).first()).n;
+    const size=Math.min(1000,Math.max(1,Number(b.size)||50)),page=Math.max(0,Number(b.page)||0);
+    const sort=b.sort==='city_asc'?'lower(city) ASC, name ASC':b.sort==='city_desc'?'lower(city) DESC, name ASC':'lead_score DESC, updated_at DESC';
+    const rows=(await env.DB.prepare('SELECT * FROM leads'+where+' ORDER BY '+sort+' LIMIT ? OFFSET ?').bind(...p,size,page*size).all()).results.map(x=>summary(leadFrom(x)));
+    return {ok:true,total,page,leads:rows};
+  }
   if(b.action==='getLead'){const r=await getLead(env,b.id);if(!r)return {ok:false,error:'Lead not found.'};const activity=(await env.DB.prepare('SELECT at,user,lead_id leadId,lead_name leadName,type,detail FROM activity WHERE lead_id=? ORDER BY at DESC LIMIT 40').bind(b.id).all()).results;return {ok:true,lead:r,activity,stages:STAGES};}
   if(b.action==='updateLead'){const r=await getLead(env,b.id);if(!r)return {ok:false,error:'Lead not found.'};const changed=[];for(const k of indexed){if(k==='id'||!Object.hasOwn(b.fields||{},k))continue;const v=b.fields[k];if(String(r[k]??'')!==String(v??'')){r[k]=v;changed.push(k)}}r.updatedAt=now();await saveLead(env,r);if(changed.length)await log(env,who,r,changed.includes('stage')?'stage':'edit',changed.includes('stage')?'Stage → '+r.stage:'Updated '+changed.join(', '));return {ok:true,changed};}
   if(b.action==='addNote'){const r=await getLead(env,b.id);if(!r)return {ok:false,error:'Lead not found.'};if(!text(b.note))return {ok:false,error:'Note is empty.'};const line=`[${now().slice(0,16).replace('T',' ')} ${who.name}] ${text(b.note)}`;r.notes=(r.notes?line+'\n'+r.notes:line).slice(0,45000);r.updatedAt=now();await saveLead(env,r);await log(env,who,r,'note',b.note);return {ok:true,notes:r.notes};}

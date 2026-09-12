@@ -16,11 +16,28 @@
   <div class="toolbar">
     <input type="search" id="q" placeholder="Search business, city, contact, phone...">
     <select id="stage"><option value="">All stages</option></select>
+    <select id="sort"><option value="score">Sort: highest score</option><option value="city_asc">City: A–Z</option><option value="city_desc">City: Z–A</option></select>
+    <div class="city-picker">
+      <input type="search" id="cityInput" list="cityOptions" placeholder="Filter cities — type, then Enter" autocomplete="off">
+      <datalist id="cityOptions"></datalist>
+      <div class="city-chips" id="cityChips" aria-live="polite"></div>
+    </div>
+    <select id="decisionMaker"><option value="">Any decision maker</option><option value="has">Has decision maker</option><option value="missing">No decision maker</option></select>
+    <select id="emailStatus"><option value="">Any email status</option><option value="has">Has email</option><option value="missing">No email</option></select>
     <label class="chk"><input type="checkbox" id="chains"> Hide chains</label>
-    <label class="chk"><input type="checkbox" id="noEmail"> Missing email</label>
     <label class="chk"><input type="checkbox" id="noResearch"> Not researched</label>
     <button class="btn quiet compact" id="reload">Refresh</button>
   </div>
+
+  <section class="bulk-research" aria-labelledby="bulkResearchTitle">
+    <div><b id="bulkResearchTitle">Auto research</b><p class="hint">Researches the next unresearched leads matching the filters above, one at a time.</p></div>
+    <label>Next <input id="researchAmount" type="number" min="1" max="1000" value="10" inputmode="numeric"> leads</label>
+    <label>Cost / credit <input id="creditRate" type="number" min="0" step="0.001" placeholder="$ optional" inputmode="decimal"></label>
+    <span class="hint" id="researchEstimate"></span>
+    <button class="btn primary" id="autoResearch">Research next 10</button>
+    <button class="btn quiet" id="stopResearch" hidden>Stop after current</button>
+    <p class="msg" id="bulkProgress"></p>
+  </section>
 
   <div class="tablewrap">
     <table class="grid">
@@ -43,12 +60,57 @@
 <script src="/assets/onyx.js"></script>
 <script>
 Onyx.requireAuth(function () {
-  var page = 0, size = 50;
+  var page = 0, size = 50, selectedCities = [], cityIndex = [], bulkStop = false, bulkRunning = false;
 
-  if (Onyx.qs('needsEmail')) document.getElementById('noEmail').checked = true;
+  if (Onyx.qs('needsEmail')) document.getElementById('emailStatus').value = 'missing';
   if (Onyx.qs('needsResearch')) document.getElementById('noResearch').checked = true;
 
-  Onyx.sheet('stats', {}).then(function (r) {
+  try { document.getElementById('creditRate').value = localStorage.getItem('onyx_research_credit_rate') || ''; } catch (_) { }
+
+  function payload(extra) {
+    return Object.assign({
+      q: document.getElementById('q').value,
+      stage: document.getElementById('stage').value,
+      sort: document.getElementById('sort').value,
+      cities: selectedCities,
+      decisionMakerStatus: document.getElementById('decisionMaker').value,
+      emailStatus: document.getElementById('emailStatus').value,
+      hideChains: document.getElementById('chains').checked,
+      needsResearch: document.getElementById('noResearch').checked,
+      page: page, size: size
+    }, extra || {});
+  }
+
+  function renderCities() {
+    document.getElementById('cityChips').innerHTML = selectedCities.map(function (city) {
+      return '<button type="button" class="city-chip" data-city="' + Onyx.esc(city) + '">' + Onyx.esc(city) + ' <span aria-hidden="true">×</span></button>';
+    }).join('');
+  }
+
+  function addCity(raw) {
+    var typed = String(raw || '').trim();
+    if (!typed) return false;
+    var match = cityIndex.find(function (x) { return x.city.toLowerCase() === typed.toLowerCase(); }) ||
+      cityIndex.find(function (x) { return x.city.toLowerCase().indexOf(typed.toLowerCase()) === 0; });
+    if (!match) return false;
+    if (selectedCities.indexOf(match.city) === -1) selectedCities.push(match.city);
+    document.getElementById('cityInput').value = '';
+    renderCities(); page = 0; load();
+    return true;
+  }
+
+  function updateEstimate() {
+    var count = Math.min(1000, Math.max(1, Number(document.getElementById('researchAmount').value) || 1));
+    var low = count * 3, high = count * 6, rate = Number(document.getElementById('creditRate').value);
+    var text = 'Estimated: ' + low.toLocaleString() + '–' + high.toLocaleString() + ' research credits (3–6 per lead).';
+    if (rate > 0) text += ' Estimated cost: $' + (low * rate).toFixed(2) + '–$' + (high * rate).toFixed(2) + '.';
+    else text += ' Enter your cost per credit for a dollar estimate.';
+    document.getElementById('researchEstimate').textContent = text;
+    document.getElementById('autoResearch').textContent = 'Research next ' + count.toLocaleString();
+  }
+
+  Promise.all([Onyx.sheet('stats', {}), Onyx.sheet('pipelineFacets', {})]).then(function (parts) {
+    var r = parts[0], facets = parts[1];
     if (!r.ok) return;
     var sel = document.getElementById('stage');
     r.stages.forEach(function (s) {
@@ -58,19 +120,19 @@ Onyx.requireAuth(function () {
     });
     var want = Onyx.qs('stage');
     if (want) sel.value = want;
+    if (facets.ok) {
+      cityIndex = facets.cities || [];
+      document.getElementById('cityOptions').innerHTML = cityIndex.map(function (x) {
+        return '<option value="' + Onyx.esc(x.city) + '">' + Onyx.esc(x.city) + ' (' + x.count + ')</option>';
+      }).join('');
+    }
+    renderCities(); updateEstimate();
     load();
   });
 
   function load() {
     document.getElementById('rows').innerHTML = '<tr><td colspan="8" class="muted">Loading...</td></tr>';
-    Onyx.sheet('listLeads', {
-      q: document.getElementById('q').value,
-      stage: document.getElementById('stage').value,
-      hideChains: document.getElementById('chains').checked,
-      needsEmail: document.getElementById('noEmail').checked,
-      needsResearch: document.getElementById('noResearch').checked,
-      page: page, size: size
-    }).then(render);
+    Onyx.sheet('listLeads', payload()).then(render);
   }
 
   function render(r) {
@@ -115,12 +177,106 @@ Onyx.requireAuth(function () {
   });
 
   document.getElementById('q').addEventListener('input', Onyx.debounce(function () { page = 0; load(); }, 350));
-  ['stage', 'chains', 'noEmail', 'noResearch'].forEach(function (id) {
+  ['stage', 'sort', 'chains', 'noResearch', 'decisionMaker', 'emailStatus'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', function () { page = 0; load(); });
+  });
+  document.getElementById('cityInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (!addCity(this.value)) this.setCustomValidity('Choose a city from the available list.'); }
+  });
+  document.getElementById('cityInput').addEventListener('input', function () { this.setCustomValidity(''); });
+  document.getElementById('cityChips').addEventListener('click', function (e) {
+    var button = e.target.closest('[data-city]'); if (!button) return;
+    selectedCities = selectedCities.filter(function (city) { return city !== button.dataset.city; }); renderCities(); page = 0; load();
   });
   document.getElementById('reload').addEventListener('click', load);
   document.getElementById('prev').addEventListener('click', function () { if (page > 0) { page--; load(); } });
   document.getElementById('next').addEventListener('click', function () { page++; load(); });
+
+  document.getElementById('researchAmount').addEventListener('input', updateEstimate);
+  document.getElementById('creditRate').addEventListener('input', function () { try { localStorage.setItem('onyx_research_credit_rate', this.value); } catch (_) { } updateEstimate(); });
+
+  function fieldsFrom(data, lead) {
+    var map = [
+      ['decisionMakerName','dmName'], ['decisionMakerTitle','dmTitle'], ['decisionMakerConfidence','dmConfidence'], ['decisionMakerEvidence','dmEvidence'],
+      ['email','email'], ['emailStatus','emailStatus'], ['emailConfidence','emailConfidence'], ['directPhone','directPhone'],
+      ['linkedin','linkedin'], ['instagram','instagram'], ['facebook','facebook'], ['services','services'], ['existingEquipment','existingEquipment'],
+      ['expansionSignals','expansionSignals'], ['reviewOpportunity','reviewOpportunity'], ['reviewFindings','reviewFindings'], ['reviewEvidence','reviewEvidence'],
+      ['serviceGap','serviceGap'], ['serviceGapEvidence','serviceGapEvidence'], ['leadScore','leadScore'], ['buyerFit','buyerFit'], ['scoreReasoning','scoreReasoning'],
+      ['salesAngle','salesAngle'], ['angleEvidence','angleEvidence'], ['bestChannel','bestChannel'], ['openingAngle','openingAngle'], ['personalization','personalization'],
+      ['suggestedMessage','suggestedMessage'], ['sources','sources'], ['emailCandidates','emailCandidates'], ['phoneCandidates','phoneCandidates'],
+      ['ownerCandidates','ownerCandidates'], ['ownerSources','ownerSources'], ['researchAttempts','researchAttempts'], ['researchSummary','researchSummary'],
+      ['enrichedAt','enrichedAt'], ['needsHumanReview','needsHumanReview']
+    ], fields = {};
+    map.forEach(function (pair) {
+      var value = data && data[pair[0]];
+      if (value === undefined || value === null || value === '' || value === 'Unknown') {
+        if (pair[1] === 'email' && lead.email && !/^Entered by /i.test(String(lead.emailStatus || ''))) fields.email = '';
+        return;
+      }
+      if (pair[1] === 'email' && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return;
+      fields[pair[1]] = ['emailCandidates','phoneCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(pair[1]) > -1 && typeof value !== 'string' ? JSON.stringify(value) : value;
+    });
+    return fields;
+  }
+
+  function mergeLines() { return Array.prototype.slice.call(arguments).filter(Boolean).join('\n'); }
+  function researchOne(summary) {
+    return Onyx.sheet('getLead', { id: summary.id }).then(function (full) {
+      if (!full.ok) throw new Error(full.error || 'Could not load lead.');
+      var lead = full.lead;
+      return Onyx.worker('enrichOwner', { lead: lead }).then(function (ownerRes) {
+        if (!ownerRes.ok) throw new Error(ownerRes.error || 'Owner research failed.');
+        var owner = ownerRes.data || {}; owner.enrichedAt = new Date().toISOString();
+        return Onyx.sheet('updateLead', { id: lead.id, fields: Object.assign(fieldsFrom(owner, lead), (!lead.stage || lead.stage === 'New Lead') ? { stage: 'Researching' } : {}) }).then(function (saved) {
+          if (!saved.ok) throw new Error(saved.error || 'Could not save owner research.');
+          return Promise.all([Onyx.worker('enrichEmails', { lead: lead, owner: owner }), Onyx.worker('enrichBusiness', { lead: lead, owner: owner })]).then(function (parts) {
+            var emailRes = parts[0], businessRes = parts[1], combined = {}, errors = [];
+            if (emailRes.ok && emailRes.data) Object.assign(combined, emailRes.data); else errors.push('contact');
+            if (businessRes.ok && businessRes.data) {
+              var emailData = combined;
+              Object.assign(combined, businessRes.data);
+              combined.researchSummary = [owner.researchSummary, emailData.researchSummary, businessRes.data.researchSummary].filter(Boolean).join(' · ');
+              combined.researchAttempts = [].concat(owner.researchAttempts || [], emailData.researchAttempts || [], businessRes.data.researchAttempts || []);
+              combined.sources = mergeLines(owner.sources, emailData.sources, businessRes.data.sources);
+            } else errors.push('sales fit');
+            combined.enrichedAt = new Date().toISOString();
+            combined.needsHumanReview = !!(owner.needsHumanReview || (emailRes.data && emailRes.data.needsHumanReview) || errors.length);
+            return Onyx.sheet('updateLead', { id: lead.id, fields: fieldsFrom(combined, lead) }).then(function (savedFinal) {
+              if (!savedFinal.ok) throw new Error(savedFinal.error || 'Could not save research.');
+              return { errors: errors };
+            });
+          });
+        });
+      });
+    });
+  }
+
+  document.getElementById('autoResearch').addEventListener('click', function () {
+    if (bulkRunning) return;
+    var requested = Math.min(1000, Math.max(1, Number(document.getElementById('researchAmount').value) || 1));
+    var request = payload({ page: 0, size: requested, needsResearch: true });
+    bulkRunning = true; bulkStop = false;
+    this.disabled = true; document.getElementById('stopResearch').hidden = false;
+    Onyx.msg('bulkProgress', 'Finding the next ' + requested.toLocaleString() + ' unresearched leads...');
+    Onyx.sheet('listLeads', request).then(function (result) {
+      if (!result.ok) throw new Error(result.error || 'Could not load research queue.');
+      var queue = result.leads || [], complete = 0, partial = 0, failed = 0;
+      if (!queue.length) { Onyx.msg('bulkProgress', 'No unresearched leads match the current filters.', 'warn'); return; }
+      function next(index) {
+        if (bulkStop || index >= queue.length) {
+          var label = bulkStop ? 'Stopped' : 'Complete';
+          Onyx.msg('bulkProgress', label + ': ' + complete + ' researched' + (partial ? ', ' + partial + ' partially saved' : '') + (failed ? ', ' + failed + ' failed' : '') + '.', bulkStop || failed ? 'warn' : 'good');
+          return Promise.resolve();
+        }
+        Onyx.msg('bulkProgress', 'Researching ' + (index + 1) + ' of ' + queue.length + ': ' + queue[index].name + '…');
+        return researchOne(queue[index]).then(function (outcome) { complete++; if (outcome.errors.length) partial++; }, function () { failed++; }).then(function () { return next(index + 1); });
+      }
+      return next(0);
+    }).catch(function (error) { Onyx.msg('bulkProgress', String(error && error.message || error), 'bad'); }).then(function () {
+      bulkRunning = false; document.getElementById('autoResearch').disabled = false; document.getElementById('stopResearch').hidden = true; load();
+    });
+  });
+  document.getElementById('stopResearch').addEventListener('click', function () { bulkStop = true; this.disabled = true; });
 });
 </script>
 </body>
