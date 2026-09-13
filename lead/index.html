@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lead · ONYX</title>
 <link rel="stylesheet" href="/assets/styles.css">
+<style>
+.lead-nav{align-items:center;justify-content:flex-end}
+.lead-nav .btn{min-width:110px;font-size:18px;line-height:1;padding:6px 20px}
+</style>
 </head>
 <body>
 <div id="chrome"></div>
@@ -13,7 +17,7 @@
   <div class="page-head">
     <div><h1 id="name">Loading...</h1><p class="hint" id="sub"></p></div>
     <div>
-      <div class="actions" style="margin:0 0 8px" id="leadNav">
+      <div class="actions lead-nav" style="margin:0 0 8px" id="leadNav">
         <button class="btn quiet compact" id="previousLead" type="button" disabled aria-label="Previous lead" title="Previous lead (↑)">↑</button>
         <span class="hint" id="leadPosition"></span>
         <button class="btn quiet compact" id="nextLead" type="button" disabled aria-label="Next lead" title="Next lead (↓)">↓</button>
@@ -116,8 +120,27 @@ Onyx.requireAuth(function () {
     } catch (_) { return { ids: [] }; }
   }
 
+  var navLookupStarted = false;
   function updateLeadNavigation() {
-    var nav = pipelineNavigation(), index = nav.ids.indexOf(id);
+    var nav = pipelineNavigation(), index = nav.ids.map(String).indexOf(String(id));
+    // Opened without a usable pipeline list (new tab, bookmark, stale page):
+    // rebuild it from the saved filters, or the default pipeline order.
+    if (index < 0 && !navLookupStarted) {
+      navLookupStarted = true;
+      var request = Object.assign({}, nav.request || {}, { page: 0, size: 1000 });
+      Onyx.sheet('listLeads', request).then(function (result) {
+        if (!result.ok || !result.leads) return;
+        var ids = result.leads.map(function (item) { return String(item.id); });
+        if (ids.indexOf(String(id)) < 0) return;
+        try {
+          sessionStorage.setItem('onyx_pipeline_nav', JSON.stringify({
+            ids: ids, names: result.leads.map(function (item) { return item.name || ''; }),
+            page: 0, total: result.total || ids.length, request: request
+          }));
+        } catch (_) { }
+        updateLeadNavigation();
+      });
+    }
     var previous = document.getElementById('previousLead'), next = document.getElementById('nextLead');
     var size = Number(nav.request && nav.request.size) || nav.ids.length || 1;
     previous.disabled = index < 0 || (index === 0 && !nav.page);
@@ -126,7 +149,7 @@ Onyx.requireAuth(function () {
   }
 
   function goToLead(offset) {
-    var nav = pipelineNavigation(), index = nav.ids.indexOf(id), target = nav.ids[index + offset];
+    var nav = pipelineNavigation(), index = nav.ids.map(String).indexOf(String(id)), target = index < 0 ? null : nav.ids[index + offset];
     if (target) { location.href = '/lead/?id=' + encodeURIComponent(target) + '&from=pipeline'; return; }
     var page = (Number(nav.page) || 0) + (offset > 0 ? 1 : -1);
     if (index < 0 || page < 0 || !nav.request) return;
@@ -295,6 +318,7 @@ Onyx.requireAuth(function () {
       }).join('') + '</div>';
   }
 
+  updateLeadNavigation();
   load();
 
   function load() {
