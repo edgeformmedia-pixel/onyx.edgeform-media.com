@@ -184,3 +184,6 @@
 .pipe-select-bar .btn.quiet,.seq-bulk .btn.quiet{background:transparent;border-color:#56677a;color:#fff}
 .pipe-select-bar .btn.quiet:hover,.seq-bulk .btn.quiet:hover{background:rgba(255,255,255,.08);border-color:#8a9aab;color:#fff}
 .pipe-select-bar .btn.quiet:disabled,.seq-bulk .btn.quiet:disabled{opacity:.5}
+
+.sup-add{display:grid;grid-template-columns:minmax(0,1fr) 150px auto;gap:8px;align-items:center}
+@media(max-width:720px){.sup-add{grid-template-columns:1fr}}

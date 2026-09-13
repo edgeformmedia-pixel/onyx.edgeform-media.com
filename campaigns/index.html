@@ -33,6 +33,21 @@
       <div class="seq-section-head"><h2 class="hint" style="text-transform:uppercase;letter-spacing:.09em;font-weight:700">Your campaigns</h2><label class="chk"><input type="checkbox" id="showArchived"> Show archived</label></div>
       <div class="seq-cards" id="cards"></div>
     </section>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="seq-section-head">
+        <div><h2>Unsubscribed &amp; bounced</h2><p class="hint">These addresses are never emailed again — by campaigns or quick emails. Add anyone who replied STOP or asked to be removed.</p></div>
+        <span class="tag" id="supTotal"></span>
+      </div>
+      <div class="sup-add">
+        <input type="text" id="supEmails" placeholder="name@business.com — paste several separated by commas" aria-label="Email addresses to unsubscribe">
+        <select id="supReason" aria-label="Reason"><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option></select>
+        <button class="btn primary compact" type="button" id="supAdd">Add</button>
+      </div>
+      <p class="msg" id="supMsg"></p>
+      <input type="search" id="supSearch" placeholder="Search addresses" style="margin:6px 0 8px;min-width:240px">
+      <div class="tablewrap"><table class="grid small seq-table"><thead><tr><th>Email</th><th>Lead</th><th>Reason</th><th>Date</th><th></th></tr></thead><tbody id="supRows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody></table></div>
+    </section>
   </section>
 
   <!-- ── campaign detail ────────────────────────────────── -->
@@ -293,6 +308,43 @@ Onyx.requireAuth(function (user) {
     openReview(ids, loadOverview);
   });
   document.getElementById('showArchived').addEventListener('change', renderCards);
+
+  /* ── unsubscribed / bounced list ────────────────────── */
+
+  function loadSuppressions() {
+    C.call('listSuppressions', { q: document.getElementById('supSearch').value.trim() }).then(function (r) {
+      var body = document.getElementById('supRows');
+      if (!r.ok) { body.innerHTML = '<tr><td colspan="5" class="muted">' + esc(r.error || 'Could not load.') + '</td></tr>'; return; }
+      document.getElementById('supTotal').textContent = r.total + ' address' + (r.total === 1 ? '' : 'es');
+      if (!r.suppressions.length) { body.innerHTML = '<tr><td colspan="5" class="muted">No unsubscribed or bounced addresses.</td></tr>'; return; }
+      body.innerHTML = r.suppressions.map(function (s) {
+        return '<tr><td><b>' + esc(s.email) + '</b></td>' +
+          '<td>' + (s.leadId ? '<a href="/lead/?id=' + encodeURIComponent(s.leadId) + '">' + esc(s.leadName || 'Open lead') + '</a>' : '<span class="muted">—</span>') + '</td>' +
+          '<td><span class="seq-state ' + esc(s.reason) + '">' + C.statusLabel(s.reason) + '</span></td>' +
+          '<td>' + esc(C.localDay(s.at)) + '</td>' +
+          '<td>' + (user.role === 'admin' ? '<button class="link" type="button" data-sup-remove="' + esc(s.email) + '">Allow again</button>' : '') + '</td></tr>';
+      }).join('');
+    });
+  }
+  document.getElementById('supAdd').addEventListener('click', function () {
+    var button = this, emails = document.getElementById('supEmails').value;
+    if (!emails.trim()) { Onyx.msg('supMsg', 'Enter an email address.', 'bad'); return; }
+    button.disabled = true; Onyx.msg('supMsg', 'Saving…');
+    C.call('addSuppression', { emails: emails, reason: document.getElementById('supReason').value }).then(function (r) {
+      button.disabled = false;
+      if (!r.ok) { Onyx.msg('supMsg', r.error || 'Could not save.', 'bad'); return; }
+      document.getElementById('supEmails').value = '';
+      Onyx.msg('supMsg', r.added + ' address' + (r.added === 1 ? '' : 'es') + ' added' + (r.leads ? ' · ' + r.leads + ' matching lead' + (r.leads === 1 ? '' : 's') + ' moved to Do Not Contact and removed from campaigns' : '') + '.', 'good');
+      loadSuppressions(); loadOverview();
+    });
+  });
+  document.getElementById('supEmails').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('supAdd').click(); });
+  document.getElementById('supSearch').addEventListener('input', Onyx.debounce(loadSuppressions, 300));
+  document.getElementById('supRows').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-sup-remove]'); if (!b) return;
+    if (!confirm('Allow emailing ' + b.dataset.supRemove + ' again? Only do this if they asked to hear from you. Their lead stage is not changed back.')) return;
+    C.call('removeSuppression', { email: b.dataset.supRemove }).then(function (r) { if (!r.ok) alert(r.error || 'Could not update.'); loadSuppressions(); });
+  });
 
   /* ── new campaign ───────────────────────────────────── */
 
@@ -657,7 +709,7 @@ Onyx.requireAuth(function (user) {
   });
   document.getElementById('editEmails').addEventListener('click', function () { openEditor(''); });
 
-  if (campaignId) loadDetail(); else loadOverview();
+  if (campaignId) loadDetail(); else { loadOverview(); loadSuppressions(); }
 });
 </script>
 </body>

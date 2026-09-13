@@ -703,6 +703,53 @@ async function leadCampaigns(env, body) {
   return { ok: true, today: todayFrom(body), members, sends, suggestedVariant: lead ? detectVariant(lead) : null, suppressed };
 }
 
+/* ── suppression list (manual unsubscribes) ──────────────── */
+
+async function suppressEmail(env, email, reason, user) {
+  const at = now(), who = user ? (user.name || user.username) : 'Recipient';
+  const leads = (await env.DB.prepare("SELECT id,name FROM leads WHERE lower(trim(email))=?").bind(email).all()).results;
+  const statements = [
+    env.DB.prepare('INSERT INTO suppressions(email,reason,lead_id,at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET reason=excluded.reason,at=excluded.at')
+      .bind(email, reason, leads[0] ? leads[0].id : null, at),
+    env.DB.prepare("UPDATE campaign_members SET status=?,status_at=?,next_due_at=NULL,sending_at=NULL WHERE email=? AND status IN ('active','paused')").bind(reason, at, email)
+  ];
+  for (const lead of leads) {
+    if (reason === 'unsubscribed') statements.push(env.DB.prepare("UPDATE leads SET stage='Do Not Contact',updated_at=? WHERE id=?").bind(at, lead.id));
+    statements.push(env.DB.prepare("INSERT INTO activity(at,user,lead_id,lead_name,type,detail) VALUES(?,?,?,?,'campaign',?)")
+      .bind(at, who, lead.id, lead.name, `${reason === 'bounced' ? 'Marked bounced' : 'Unsubscribed'}: ${email}`));
+  }
+  await env.DB.batch(statements);
+  return leads.length;
+}
+
+async function addSuppression(env, body, user) {
+  const emails = [...new Set(String(body.emails || body.email || '').split(/[\s,;]+/).map(primaryEmail).filter(Boolean))].slice(0, 200);
+  if (!emails.length) return { ok: false, error: 'Enter an email address.' };
+  const invalid = emails.filter(email => !validEmail(email));
+  if (invalid.length) return { ok: false, error: 'Not a valid email: ' + invalid.join(', ') };
+  const reason = text(body.reason) === 'bounced' ? 'bounced' : 'unsubscribed';
+  let leads = 0;
+  for (const email of emails) leads += await suppressEmail(env, email, reason, user);
+  return { ok: true, added: emails.length, leads };
+}
+
+async function listSuppressions(env, body) {
+  const q = text(body.q).toLowerCase();
+  const rows = (await env.DB.prepare(
+    "SELECT s.email,s.reason,s.at,s.lead_id leadId,coalesce(l.name,'') leadName FROM suppressions s LEFT JOIN leads l ON l.id=s.lead_id" +
+    (q ? ' WHERE s.email LIKE ?' : '') + ' ORDER BY s.at DESC LIMIT 300'
+  ).bind(...(q ? ['%' + q + '%'] : [])).all()).results;
+  const total = await env.DB.prepare('SELECT count(*) n FROM suppressions').first();
+  return { ok: true, suppressions: rows, total: Number(total && total.n) || 0 };
+}
+
+async function removeSuppression(env, body, user) {
+  if (user.role !== 'admin') return { ok: false, error: 'Only admins can re-allow an unsubscribed address.' };
+  const email = primaryEmail(body.email);
+  await env.DB.prepare('DELETE FROM suppressions WHERE email=?').bind(email).run();
+  return { ok: true };
+}
+
 /* ── unsubscribe ─────────────────────────────────────────── */
 
 function unsubscribePage(title, message, form) {
@@ -760,7 +807,8 @@ export default {
       const actions = {
         sendBatch, listSends, listCampaignLeads, setSendStatus,
         listCampaigns, getCampaign, createCampaign, updateCampaign, dueQueue, previewMember, sendMembers,
-        enrollLeads, updateMembers, leadCampaigns, getSequence, saveSequence, saveSettings
+        enrollLeads, updateMembers, leadCampaigns, getSequence, saveSequence, saveSettings,
+        addSuppression, listSuppressions, removeSuppression
       };
       const handler = Object.hasOwn(actions, body.action) ? actions[body.action] : null;
       if (!handler) return json({ ok: false, error: 'Unknown campaign action.' }, 400, headers);
