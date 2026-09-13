@@ -5,7 +5,7 @@ const CORS = { 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-
 const indexed = ['name','category','phone','website','city','state','rating','reviewCount','isNationalChain','dmName','dmTitle','email','leadScore','stage','owner','nextActionDate','lastContacted','enrichedAt','needsHumanReview','scrapedAt',
   // Kept in the JSON payload rather than their own D1 columns, but explicitly
   // whitelisted here so both individual and batch research persist their work.
-  'dmConfidence','dmEvidence','emailStatus','emailConfidence','directPhone','linkedin','instagram','facebook','services','existingEquipment','expansionSignals','reviewOpportunity','reviewFindings','reviewEvidence','serviceGap','serviceGapEvidence','buyerFit','scoreReasoning','salesAngle','angleEvidence','bestChannel','openingAngle','personalization','suggestedMessage','sources','emailCandidates','phoneCandidates','ownerCandidates','ownerSources','researchAttempts','researchSummary'];
+  'dmConfidence','dmEvidence','emailStatus','emailConfidence','directPhone','linkedin','instagram','facebook','services','existingEquipment','expansionSignals','reviewOpportunity','reviewFindings','reviewEvidence','serviceGap','serviceGapEvidence','buyerFit','scoreReasoning','salesAngle','angleEvidence','bestChannel','openingAngle','personalization','suggestedMessage','sources','emailCandidates','phoneCandidates','ownerCandidates','ownerSources','researchAttempts','researchSummary','hasLaser'];
 
 function corsFor(request) { const origin=request.headers.get('origin')||''; const allowed=origin===SITE_URL||/^chrome-extension:\/\/[a-z]+$/i.test(origin)?origin:SITE_URL; return {...CORS,'access-control-allow-origin':allowed,'vary':'Origin'}; }
 function reply(body, status = 200, headers = {...CORS,'access-control-allow-origin':SITE_URL}) { return new Response(JSON.stringify(body), { status, headers }); }
@@ -30,7 +30,11 @@ function leadColumns(r) {
     text(r.updatedAt), JSON.stringify(r)
   ];
 }
-function summary(r) { const out={}; ['id','name','category','phone','website','city','state','isNationalChain','buyerType','dmName','dmTitle','email','emailConfidence','leadScore','buyerFit','stage','owner','nextAction','nextActionDate','lastContacted','callAttempts','callOutcome','needsHumanReview','rating','reviewCount','reviewOpportunity','reviewFindings','reviewEvidence','serviceGap'].forEach(k=>out[k]=r[k]); return out; }
+const LASER_WORDS=['laser hair','hair removal','diode laser','gentlemax','candela','soprano','splendor x','lightsheer','motus ax','elysion','cutera','lumenis','alexandrite','nd:yag'];
+function laserFound(r) { const hay=(typeof r.services==='string'?r.services:JSON.stringify(r.services||''))+' '+(typeof r.existingEquipment==='string'?r.existingEquipment:JSON.stringify(r.existingEquipment||'')); const low=hay.toLowerCase(); return LASER_WORDS.some(w=>low.includes(w)) || /lhr/.test(low); }
+// SQL twin of laserFound(): research mentions laser hair removal or a known laser brand.
+const LASER_SQL='('+LASER_WORDS.map(w=>"lower(coalesce(json_extract(data,'$.services'),'')||' '||coalesce(json_extract(data,'$.existingEquipment'),'')) LIKE '%"+w+"%'").join(' OR ')+')';
+function summary(r) { const out={laserAuto:laserFound(r)}; ['id','name','category','phone','website','city','state','isNationalChain','buyerType','dmName','dmTitle','email','emailConfidence','leadScore','buyerFit','stage','owner','nextAction','nextActionDate','lastContacted','callAttempts','callOutcome','needsHumanReview','rating','reviewCount','reviewOpportunity','reviewFindings','reviewEvidence','serviceGap','hasLaser'].forEach(k=>out[k]=r[k]); return out; }
 function enrichmentWeight(row) {
   let data={};
   try { data=JSON.parse(row.data||'{}'); } catch {}
@@ -110,6 +114,10 @@ async function handle(env, b) {
     if(b.decisionMakerStatus==='missing')terms.push("(trim(coalesce(dm_name,''))='' OR lower(trim(dm_name))='unknown')");
     if(b.decisionMakerStatus==='has')terms.push("trim(coalesce(dm_name,''))<>'' AND lower(trim(dm_name))<>'unknown'");
     if(b.needsResearch)terms.push("coalesce(enriched_at,'')='' ");
+    if(b.laser){const marked="coalesce(json_extract(data,'$.hasLaser'),'')";
+      if(b.laser==='yes'){terms.push(`(${marked}='yes' OR (${marked}='' AND ${LASER_SQL}))`)}
+      if(b.laser==='no'){terms.push(`(${marked}='no' OR (${marked}='' AND NOT ${LASER_SQL}))`)}
+      if(b.laser==='unmarked')terms.push(`${marked}=''`);}
     if(b.needsContactResearch)terms.push("(trim(coalesce(dm_name,''))='' OR lower(trim(dm_name))='unknown' OR trim(coalesce(email,''))='')");
     const cities=Array.isArray(b.cities)?b.cities.map(text).filter(Boolean).slice(0,100):[];
     if(cities.length){terms.push('lower(trim(city)) IN ('+cities.map(()=>'?').join(',')+')');p.push(...cities.map(x=>x.toLowerCase()))}

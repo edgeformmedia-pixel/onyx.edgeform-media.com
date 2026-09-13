@@ -11,7 +11,7 @@ window.ONYX_CONFIG = {
   // The verified Resend domain. The campaign composer appends this to the
   // local sender name a rep enters (for example, sales@onyxmedicalgroups.com).
   SEND_DOMAIN: 'onyxmedicalgroups.com',
-  FROM_OPTIONS: ['customerrelations', 'sales', 'info'],
+  FROM_OPTIONS: ['customerrelations', 'sales', 'info', 'team'],
   POSTAL_ADDRESS: '',
   UNSUBSCRIBE_LINE: 'Not the right fit? Reply STOP and I will not contact you again.'
 };

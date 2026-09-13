@@ -25,6 +25,7 @@
     </div>
     <select id="decisionMaker"><option value="">Any decision maker</option><option value="has">Has decision maker</option><option value="missing">No decision maker</option></select>
     <select id="emailStatus"><option value="">Any email status</option><option value="has">Has email</option><option value="missing">No email</option></select>
+    <select id="laser" aria-label="Laser machine"><option value="">Any laser status</option><option value="yes">Has laser machine</option><option value="no">No laser machine</option><option value="unmarked">Laser not marked yet</option></select>
     <label class="chk"><input type="checkbox" id="chains"> Hide chains</label>
     <label class="chk"><input type="checkbox" id="noResearch"> Missing owner or email</label>
     <button class="btn quiet compact" id="researchToggle" type="button" aria-expanded="false" aria-controls="bulkResearch">Auto research</button>
@@ -42,12 +43,17 @@
     <p class="msg" id="bulkProgress"></p>
   </section>
 
+  <div class="select-matching" id="selectMatchingRow" hidden>
+    <span class="hint" id="selectMatchingHint"></span>
+    <button class="btn quiet compact" type="button" id="selectMatching">Select all matching</button>
+  </div>
+
   <div class="tablewrap">
     <table class="grid">
       <thead><tr>
         <th class="sel-col"><input type="checkbox" id="selectPage" aria-label="Select all leads on this page"></th>
         <th style="width:64px">Score</th><th>Business</th><th>City</th>
-        <th>Decision maker</th><th>Email</th><th>Phone</th><th>Stage</th><th>Owner</th><th>Campaign</th>
+        <th>Decision maker</th><th>Email</th><th>Phone</th><th>Laser machine</th><th>Stage</th><th>Owner</th><th>Campaign</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -72,7 +78,27 @@
 <script>
 Onyx.requireAuth(function () {
   var page = 0, size = 50, selectedCities = [], cityIndex = [], bulkStop = false, bulkRunning = false;
-  var selectedLeads = {}, pageLeadIds = [];
+  var selectedLeads = {}, pageLeadIds = [], matchingTotal = 0;
+
+  function laserSelect(l) {
+    var auto = l.laserAuto ? 'Auto: has laser' : 'Auto: no laser found';
+    return '<select class="laser-pick' + (l.hasLaser ? ' marked' : '') + '" data-laser-lead="' + Onyx.esc(l.id) + '" aria-label="Laser machine for ' + Onyx.esc(l.name) + '">' +
+      '<option value=""' + (!l.hasLaser ? ' selected' : '') + '>' + auto + '</option>' +
+      '<option value="yes"' + (l.hasLaser === 'yes' ? ' selected' : '') + '>Has laser</option>' +
+      '<option value="no"' + (l.hasLaser === 'no' ? ' selected' : '') + '>No laser</option></select>';
+  }
+
+  function filterSummary() {
+    var parts = [];
+    if (selectedCities.length) parts.push(selectedCities.join(', '));
+    var laser = document.getElementById('laser');
+    if (laser.value) parts.push(laser.options[laser.selectedIndex].textContent.toLowerCase());
+    var stage = document.getElementById('stage').value;
+    if (stage) parts.push(stage);
+    var email = document.getElementById('emailStatus');
+    if (email.value) parts.push(email.options[email.selectedIndex].textContent.toLowerCase());
+    return matchingTotal.toLocaleString() + ' leads match' + (parts.length ? ': ' + parts.join(' · ') : '');
+  }
 
   if (Onyx.qs('needsEmail')) document.getElementById('emailStatus').value = 'missing';
   if (Onyx.qs('needsResearch')) document.getElementById('noResearch').checked = true;
@@ -87,6 +113,7 @@ Onyx.requireAuth(function () {
       emailStatus: document.getElementById('emailStatus').value,
       hideChains: document.getElementById('chains').checked,
       needsContactResearch: document.getElementById('noResearch').checked,
+      laser: document.getElementById('laser').value,
       page: page, size: size
     }, extra || {});
   }
@@ -140,13 +167,13 @@ Onyx.requireAuth(function () {
   });
 
   function load() {
-    document.getElementById('rows').innerHTML = '<tr><td colspan="10" class="muted">Loading...</td></tr>';
+    document.getElementById('rows').innerHTML = '<tr><td colspan="11" class="muted">Loading...</td></tr>';
     Onyx.sheet('listLeads', payload()).then(render);
   }
 
   function render(r) {
     var tb = document.getElementById('rows');
-    if (!r.ok) { tb.innerHTML = '<tr><td colspan="10" class="muted">' + Onyx.esc(r.error) + '</td></tr>'; return; }
+    if (!r.ok) { tb.innerHTML = '<tr><td colspan="11" class="muted">' + Onyx.esc(r.error) + '</td></tr>'; return; }
 
     document.getElementById('sub').textContent = r.total + ' leads match';
 
@@ -161,7 +188,7 @@ Onyx.requireAuth(function () {
     } catch (_) { }
 
     if (!r.leads.length) {
-      tb.innerHTML = '<tr><td colspan="10"><div class="empty-state"><h3>Nothing here</h3>' +
+      tb.innerHTML = '<tr><td colspan="11"><div class="empty-state"><h3>Nothing here</h3>' +
         '<p class="hint">Loosen the filters, or run the LeadHunter extension to pull more leads in.</p>' +
         '</div></td></tr>';
     } else {
@@ -179,12 +206,17 @@ Onyx.requireAuth(function () {
             : '<span class="muted">not found</span>') + '</td>' +
           '<td>' + (l.email ? Onyx.esc(l.email) : '<span class="muted">-</span>') + '</td>' +
           '<td>' + Onyx.esc(l.phone || '') + '</td>' +
+          '<td>' + laserSelect(l) + '</td>' +
           '<td>' + Onyx.esc(l.stage || '') + '</td>' +
           '<td>' + Onyx.esc(l.owner || '') + '</td>' +
           '<td><button class="btn quiet compact" type="button" data-enroll-lead="' + Onyx.esc(l.id) + '"' + (l.email ? '' : ' disabled title="No email yet"') + '>Add to campaign</button></td></tr>';
       }).join('');
     }
     pageLeadIds = (r.leads || []).map(function (l) { return String(l.id); });
+    matchingTotal = r.total || 0;
+    document.getElementById('selectMatchingRow').hidden = !matchingTotal;
+    document.getElementById('selectMatching').textContent = 'Select all ' + Math.min(matchingTotal, 1000).toLocaleString() + (matchingTotal > 1000 ? ' (first 1,000)' : '') + ' matching';
+    document.getElementById('selectMatchingHint').textContent = filterSummary();
     updateSelection();
 
     var start = r.page * size;
@@ -200,7 +232,30 @@ Onyx.requireAuth(function () {
     document.getElementById('selectCount').textContent = ids.length + ' lead' + (ids.length === 1 ? '' : 's') + ' selected';
     document.getElementById('selectPage').checked = pageLeadIds.length > 0 && pageLeadIds.every(function (id) { return selectedLeads[id]; });
   }
+  document.getElementById('selectMatching').addEventListener('click', function () {
+    var button = this;
+    button.disabled = true; button.textContent = 'Selecting…';
+    Onyx.sheet('listLeads', payload({ page: 0, size: 1000 })).then(function (r) {
+      button.disabled = false;
+      if (!r.ok) { alert(r.error || 'Could not load matching leads.'); return; }
+      (r.leads || []).forEach(function (l) { selectedLeads[l.id] = true; });
+      document.querySelectorAll('[data-select-lead]').forEach(function (box) { box.checked = !!selectedLeads[box.dataset.selectLead]; });
+      button.textContent = 'Selected ' + (r.leads || []).length.toLocaleString() + ' matching';
+      updateSelection();
+    });
+  });
+
   document.getElementById('rows').addEventListener('change', function (e) {
+    var pick = e.target.closest('[data-laser-lead]');
+    if (pick) {
+      pick.disabled = true;
+      Onyx.sheet('updateLead', { id: pick.dataset.laserLead, fields: { hasLaser: pick.value } }).then(function (r) {
+        pick.disabled = false;
+        pick.classList.toggle('marked', !!pick.value);
+        if (!r.ok) alert(r.error || 'Could not save.');
+      });
+      return;
+    }
     var box = e.target.closest('[data-select-lead]'); if (!box) return;
     selectedLeads[box.dataset.selectLead] = box.checked; updateSelection();
   });
@@ -229,7 +284,7 @@ Onyx.requireAuth(function () {
   });
 
   document.getElementById('q').addEventListener('input', Onyx.debounce(function () { page = 0; load(); }, 350));
-  ['stage', 'sort', 'chains', 'noResearch', 'decisionMaker', 'emailStatus'].forEach(function (id) {
+  ['stage', 'sort', 'chains', 'noResearch', 'decisionMaker', 'emailStatus', 'laser'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', function () { page = 0; load(); });
   });
   document.getElementById('cityInput').addEventListener('keydown', function (e) {

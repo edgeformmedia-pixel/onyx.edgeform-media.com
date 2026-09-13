@@ -287,7 +287,9 @@ async function saveSequence(env, body, user) {
 
 function detectVariant(row) {
   const data = parseData(row);
-  const hay = [data.services, data.existingEquipment].map(asText).join(' ');
+  if (data.hasLaser === 'yes') return { variant: 'existing', reason: 'Marked “has laser machine” in Pipeline' };
+  if (data.hasLaser === 'no') return { variant: 'first', reason: 'Marked “no laser machine” in Pipeline' };
+  const hay =[data.services, data.existingEquipment].map(asText).join(' ');
   const match = hay.match(LASER_RE);
   if (match && !/\b(no|not|doesn.t|does not|without)\b[^.]{0,30}laser/i.test(hay)) {
     return { variant: 'existing', reason: `Research mentions “${match[0]}”` };
