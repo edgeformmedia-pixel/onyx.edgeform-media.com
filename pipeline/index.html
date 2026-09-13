@@ -39,7 +39,6 @@
     <label>Next <input id="researchAmount" type="number" min="1" max="1000" value="10" inputmode="numeric"> leads</label>
     <span class="hint" id="researchEstimate"></span>
     <button class="btn primary" id="autoResearch">Find owner + email for next 10</button>
-    <button class="btn quiet" id="stopResearch" hidden>Stop after current</button>
     <p class="msg" id="bulkProgress"></p>
   </section>
 
@@ -63,7 +62,6 @@
     <strong id="selectCount"></strong>
     <span class="select-progress" id="selectProgress"></span>
     <button class="btn quiet compact" type="button" id="selectClear">Clear</button>
-    <button class="btn quiet compact" type="button" id="selectStop" hidden>Stop after current</button>
     <button class="btn quiet compact" type="button" id="selectResearch" title="Find owner + best email for every selected lead, even ones already researched">Research selected</button>
     <button class="btn primary compact" type="button" id="selectEnroll">Add to campaign</button>
   </div>
@@ -78,6 +76,7 @@
 <script src="/assets/config.js"></script>
 <script src="/assets/onyx.js"></script>
 <script src="/assets/campaign-ui.js"></script>
+<script src="/assets/research-queue.js"></script>
 <script>
 Onyx.requireAuth(function () {
   var page = 0, size = 50, selectedCities = [], cityIndex = [], bulkStop = false, bulkRunning = false;
@@ -284,29 +283,16 @@ Onyx.requireAuth(function () {
     OnyxCampaigns.enroll(ids, { onDone: function () { selectedLeads = {}; load(); } });
   });
 
-  var lastSelectIndex = -1, selectRunning = false, selectStop = false;
+  var lastSelectIndex = -1;
   document.getElementById('selectResearch').addEventListener('click', function () {
-    if (selectRunning) return;
     var ids = Object.keys(selectedLeads).filter(function (id) { return selectedLeads[id]; });
     if (!ids.length) return;
     if (ids.length > 25 && !confirm('Research ' + ids.length + ' leads? Each one runs an AI web search, one at a time.')) return;
-    selectRunning = true; selectStop = false;
-    var button = this, stop = document.getElementById('selectStop'), done = 0, failed = 0;
-    button.disabled = true; stop.hidden = false; stop.disabled = false;
-    function progress(text) { document.getElementById('selectProgress').textContent = text; }
-    function next(i) {
-      if (selectStop || i >= ids.length) {
-        progress((selectStop ? 'Stopped: ' : 'Done: ') + done + ' researched' + (failed ? ', ' + failed + ' failed' : ''));
-        selectRunning = false; button.disabled = false; stop.hidden = true;
-        load();
-        return;
-      }
-      progress('Researching ' + (i + 1) + ' of ' + ids.length + '…');
-      researchOne({ id: ids[i] }, true).then(function () { done++; }, function () { failed++; }).then(function () { next(i + 1); });
-    }
-    next(0);
+    var names = {};
+    document.querySelectorAll('tr[data-id]').forEach(function (tr) { names[tr.dataset.id] = (tr.children[2] && tr.children[2].firstChild && tr.children[2].firstChild.textContent) || ''; });
+    var added = OnyxResearch.add(ids.map(function (id) { return { id: id, name: names[id] || '' }; }), { force: true });
+    document.getElementById('selectProgress').textContent = added ? added + ' added to the research queue below' : 'Already in the research queue';
   });
-  document.getElementById('selectStop').addEventListener('click', function () { selectStop = true; this.disabled = true; });
 
   document.getElementById('rows').addEventListener('click', function (e) {
     var check = e.target.closest('[data-select-lead]');
@@ -365,67 +351,24 @@ Onyx.requireAuth(function () {
     panel.hidden = !open; this.setAttribute('aria-expanded', String(open)); this.textContent = open ? 'Hide auto research' : 'Auto research';
   });
 
-  // force: re-research overwrites earlier AI results, but never an email a person typed in.
-  function fieldsFrom(data, lead, force) {
-    var map = [
-      ['decisionMakerName','dmName'], ['decisionMakerConfidence','dmConfidence'], ['decisionMakerEvidence','dmEvidence'],
-      ['email','email'], ['emailStatus','emailStatus'], ['emailConfidence','emailConfidence'], ['sources','sources'],
-      ['enrichedAt','enrichedAt'], ['needsHumanReview','needsHumanReview']
-    ], fields = {};
-    map.forEach(function (pair) {
-      var value = data && data[pair[0]];
-      if (value === undefined || value === null || value === '' || value === 'Unknown') return;
-      if (!force && ['dmName','dmConfidence','dmEvidence'].indexOf(pair[1]) > -1 && lead.dmName && String(lead.dmName).toLowerCase() !== 'unknown') return;
-      if (['email','emailStatus','emailConfidence'].indexOf(pair[1]) > -1 && lead.email && (!force || /^Entered by /i.test(String(lead.emailStatus || '')))) return;
-      if (pair[1] === 'sources') value = mergeLines(lead.sources, value);
-      fields[pair[1]] = value;
-    });
-    return fields;
-  }
-
-  function mergeLines() { return Array.prototype.slice.call(arguments).filter(Boolean).join('\n'); }
-  function researchOne(summary, force) {
-    return Onyx.sheet('getLead', { id: summary.id }).then(function (full) {
-      if (!full.ok) throw new Error(full.error || 'Could not load lead.');
-      var lead = full.lead;
-      return Onyx.worker('enrichContact', { lead: lead }).then(function (result) {
-        if (!result.ok) throw new Error(result.error || 'Owner and email research failed.');
-        var fields = fieldsFrom(result.data || {}, lead, force);
-        if (!lead.stage || lead.stage === 'New Lead') fields.stage = 'Researching';
-        return Onyx.sheet('updateLead', { id: lead.id, fields: fields }).then(function (saved) {
-          if (!saved.ok) throw new Error(saved.error || 'Could not save owner and email.');
-          return { errors: [] };
-        });
-      });
-    });
-  }
-
   document.getElementById('autoResearch').addEventListener('click', function () {
-    if (bulkRunning) return;
+    var button = this;
     var requested = Math.min(1000, Math.max(1, Number(document.getElementById('researchAmount').value) || 1));
-    var request = payload({ page: 0, size: requested, needsContactResearch: true });
-    bulkRunning = true; bulkStop = false;
-    this.disabled = true; document.getElementById('stopResearch').hidden = false;
-    Onyx.msg('bulkProgress', 'Finding owner names and emails for the next ' + requested.toLocaleString() + ' leads...');
-    Onyx.sheet('listLeads', request).then(function (result) {
-      if (!result.ok) throw new Error(result.error || 'Could not load research queue.');
-      var queue = result.leads || [], complete = 0, partial = 0, failed = 0;
-      if (!queue.length) { Onyx.msg('bulkProgress', 'Every matching lead already has an owner and email.', 'warn'); return; }
-      function next(index) {
-        if (bulkStop || index >= queue.length) {
-          var label = bulkStop ? 'Stopped' : 'Complete';
-          Onyx.msg('bulkProgress', label + ': ' + complete + ' researched' + (partial ? ', ' + partial + ' partially saved' : '') + (failed ? ', ' + failed + ' failed' : '') + '.', bulkStop || failed ? 'warn' : 'good');
-          return Promise.resolve();
-        }
-        Onyx.msg('bulkProgress', 'Researching ' + (index + 1) + ' of ' + queue.length + ': ' + queue[index].name + '…');
-        return researchOne(queue[index]).then(function (outcome) { complete++; if (outcome.errors.length) partial++; }, function () { failed++; }).then(function () { return next(index + 1); });
-      }
-      return next(0);
-    }).catch(function (error) { Onyx.msg('bulkProgress', String(error && error.message || error), 'bad'); }).then(function () {
-      bulkRunning = false; document.getElementById('autoResearch').disabled = false; document.getElementById('stopResearch').hidden = true; load();
+    button.disabled = true;
+    Onyx.msg('bulkProgress', 'Finding the next ' + requested.toLocaleString() + ' leads missing an owner or email…');
+    Onyx.sheet('listLeads', payload({ page: 0, size: requested, needsContactResearch: true })).then(function (result) {
+      button.disabled = false;
+      if (!result.ok) { Onyx.msg('bulkProgress', result.error || 'Could not load leads to research.', 'bad'); return; }
+      var leads = result.leads || [];
+      if (!leads.length) { Onyx.msg('bulkProgress', 'Every matching lead already has an owner and email.', 'warn'); return; }
+      var added = OnyxResearch.add(leads.map(function (l) { return { id: l.id, name: l.name }; }), { force: false });
+      Onyx.msg('bulkProgress', added + ' lead' + (added === 1 ? '' : 's') + ' added to the research queue at the bottom of the screen. It keeps running while you use the CRM.', 'good');
     });
   });
-  document.getElementById('stopResearch').addEventListener('click', function () { bulkStop = true; this.disabled = true; });
+
+  // Refresh the table as the background queue saves results.
+  var refreshSoon = Onyx.debounce(function () { if (!bulkRunning) load(); }, 1500);
+  OnyxResearch.on(function (type) { if (type === 'done' || type === 'finished') refreshSoon(); });
 });
 </script>
 </body>

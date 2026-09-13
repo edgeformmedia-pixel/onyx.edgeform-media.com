@@ -412,3 +412,28 @@ table.grid{font-size:12.5px}
 @media(max-width:1050px){.campaign-builder{grid-template-columns:1fr}.campaign-queue-panel{position:static}.campaign-metrics{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.campaign-workspace{padding-inline:12px}.campaign-page-head{align-items:flex-start}.campaign-head-actions{width:100%}.campaign-head-actions .btn{flex:1;justify-content:center}.campaign-metrics{gap:8px}.campaign-metrics article{padding:12px}.campaign-composer,.campaign-queue-panel,.campaign-preview-panel{padding:16px}.campaign-field-split{grid-template-columns:1fr}.campaign-field-split>label,.campaign-field-split>.field-label{margin-bottom:5px}.manual-recipient-fields{grid-template-columns:1fr}.queue-send-bar{margin:17px -16px -16px;padding:14px 16px}.campaign-queue-panel>.msg{margin-top:26px}.preview-controls{width:100%;flex-wrap:wrap}.preview-controls select{min-width:0;flex:1}.preview-routing{grid-template-columns:1fr}.activity-toolbar{display:grid}.activity-toolbar select{width:100%}.campaign-activity-table table{min-width:880px}.lead-picker-filters{grid-template-columns:1fr;padding:12px}.picker-select-bar{align-items:flex-start;padding:10px 12px;flex-direction:column}.lead-picker-row{grid-template-columns:22px 1fr;padding:12px}.picker-location,.picker-stage,.picker-history{grid-column:2}.picker-stage{justify-self:start}.campaign-dialog .dialog-header,.campaign-dialog .dialog-footer{padding:14px}.campaign-dialog .dialog-footer{align-items:flex-start;flex-direction:column}.campaign-dialog .dialog-footer>div{width:100%}.campaign-dialog .dialog-footer .btn{flex:1;justify-content:center}.send-review-summary{grid-template-columns:1fr}.send-review-recipients>div{display:grid;gap:2px}.send-review-recipients strong{text-align:left}}
 @media(max-width:430px){.campaign-metrics{grid-template-columns:1fr 1fr}.campaign-metrics strong{font-size:22px}.campaign-section-head{flex-wrap:wrap}.quick-add-buttons{grid-template-columns:repeat(5,1fr)}.queue-send-bar{align-items:stretch;flex-direction:column}.queue-send-bar .btn{justify-content:center}.sender-control>span{padding-inline:7px;font-size:10.5px}}
+
+/* Background research queue bar (assets/research-queue.js) */
+body.research-queue-on{padding-bottom:64px}
+.research-queue{position:fixed;left:0;right:0;bottom:0;z-index:50;display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,260px) auto;align-items:center;gap:16px;padding:10px 20px;background:#17212b;color:#fff;box-shadow:0 -6px 24px rgba(15,27,39,.22);font-size:13px}
+.research-queue[hidden]{display:none}
+.research-queue .rq-main{display:flex;align-items:center;gap:11px;min-width:0}
+.research-queue .rq-text{min-width:0}
+.research-queue .rq-text strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.research-queue .rq-text small{display:block;color:#aebccb;font-size:11px}
+.research-queue .rq-spinner{flex:0 0 auto;width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff}
+.research-queue.running .rq-spinner{animation:rq-spin .8s linear infinite}
+.research-queue.finished .rq-spinner{border-color:#3ec98a;background:#3ec98a}
+@keyframes rq-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.research-queue.running .rq-spinner{animation:none}}
+.research-queue .rq-progress{height:6px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}
+.research-queue .rq-progress i{display:block;height:100%;background:#4f9be8;transition:width .3s}
+.research-queue .rq-actions{display:flex;gap:6px}
+.research-queue .rq-actions button{border:1px solid #56677a;background:transparent;color:#fff;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer}
+.research-queue .rq-actions button:hover{background:rgba(255,255,255,.08);border-color:#8a9aab}
+.research-queue .rq-actions button[hidden]{display:none}
+.research-queue .rq-errors{grid-column:1/-1;max-height:140px;overflow:auto;font-size:12px;color:#f3c1ca;border-top:1px solid #2e3b48;padding-top:8px}
+.research-queue .rq-errors[hidden]{display:none}
+.research-queue .rq-errors a{color:#fff}
+body.research-queue-on .pipe-select-bar,body.research-queue-on .seq-bulk{bottom:72px}
+@media(max-width:720px){.research-queue{grid-template-columns:1fr;gap:8px;padding:10px 14px}body.research-queue-on{padding-bottom:120px}body.research-queue-on .pipe-select-bar,body.research-queue-on .seq-bulk{bottom:128px}}

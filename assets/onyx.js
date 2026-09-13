@@ -134,6 +134,13 @@ window.Onyx = (function () {
       '</header>';
 
     document.getElementById('onyxSignOut').addEventListener('click', signOut);
+
+    // Background research queue runs on every signed-in page.
+    if (!window.OnyxResearch && !document.getElementById('onyxResearchQueue')) {
+      var s = document.createElement('script');
+      s.id = 'onyxResearchQueue'; s.src = '/assets/research-queue.js';
+      document.body.appendChild(s);
+    }
   }
 
   /* ── helpers ────────────────────────────────────────────── */
