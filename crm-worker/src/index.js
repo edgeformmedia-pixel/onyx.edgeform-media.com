@@ -110,6 +110,7 @@ async function handle(env, b) {
     if(b.decisionMakerStatus==='missing')terms.push("(trim(coalesce(dm_name,''))='' OR lower(trim(dm_name))='unknown')");
     if(b.decisionMakerStatus==='has')terms.push("trim(coalesce(dm_name,''))<>'' AND lower(trim(dm_name))<>'unknown'");
     if(b.needsResearch)terms.push("coalesce(enriched_at,'')='' ");
+    if(b.needsContactResearch)terms.push("(trim(coalesce(dm_name,''))='' OR lower(trim(dm_name))='unknown' OR trim(coalesce(email,''))='')");
     const cities=Array.isArray(b.cities)?b.cities.map(text).filter(Boolean).slice(0,100):[];
     if(cities.length){terms.push('lower(trim(city)) IN ('+cities.map(()=>'?').join(',')+')');p.push(...cities.map(x=>x.toLowerCase()))}
     if(text(b.q)){terms.push("lower(name||' '||city||' '||dm_name||' '||phone||' '||email||' '||category) LIKE ?");p.push('%'+text(b.q).toLowerCase()+'%')}

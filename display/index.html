@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10100f">
+  <title>Velor | ONYX Medical Groups</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="display.css">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="ONYX home"><span>ONYX</span><small>MEDICAL GROUPS</small></a>
+    <nav aria-label="Primary navigation"><a href="#technology">Technology</a><a href="#experience">Experience</a><a href="#details">Details</a></nav>
+    <a class="nav-cta" href="#inquire">Request a demo <span>↗</span></a>
+    <button class="menu" aria-label="Open navigation"><i></i><i></i></button>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-label="Velor product introduction">
+      <div class="hero-copy">
+        <p class="eyebrow reveal">ONYX / 01 — ALEXANDRITE · DIODE · ND:YAG</p>
+        <h1 class="reveal">Hair removal,<br><em>reimagined.</em></h1>
+        <p class="intro reveal">Meet Velor: a multi-wavelength platform engineered to make every treatment feel remarkably considered.</p>
+        <div class="hero-actions reveal"><a class="button button-dark" href="#experience">Explore Velor <span>↓</span></a><button class="text-button" id="spin">View in motion <span>↻</span></button></div>
+      </div>
+      <div class="stage" id="stage" aria-label="Interactive 3D Velor system. Drag to rotate.">
+        <div class="stage-line line-one"></div><div class="stage-line line-two"></div>
+        <canvas id="model"></canvas>
+        <p class="drag-hint"><span></span> Drag to explore</p>
+        <div class="model-status" id="model-status">Loading system <b></b></div>
+      </div>
+      <div class="hero-meta"><span>Scroll to discover</span><span class="scroll-line"></span><span>01 / 03</span></div>
+    </section>
+
+    <section class="statement" id="experience">
+      <p class="eyebrow">DESIGNED AROUND THE DETAILS</p>
+      <h2>More than a treatment.<br><em>An elevated experience.</em></h2>
+      <p class="statement-copy">Velor gives practices the confidence to deliver exceptional hair removal across every skin type, with the comfort and control their patients deserve.</p>
+    </section>
+
+    <section class="feature" id="technology">
+      <div class="feature-number">01</div>
+      <div class="feature-title"><p class="eyebrow">TRIPLE-WAVELENGTH TECHNOLOGY</p><h2>One system.<br><em>Every possibility.</em></h2></div>
+      <p class="feature-copy">Three proven wavelengths. One intuitive platform. Expand your treatment capabilities without compromising on precision.</p>
+      <div class="wavelengths">
+        <article><b>755</b><span>nm</span><p>Alexandrite</p></article>
+        <article><b>810</b><span>nm</span><p>Diode</p></article>
+        <article><b>1064</b><span>nm</span><p>Nd:YAG</p></article>
+      </div>
+    </section>
+
+    <section class="details" id="details">
+      <div><p class="eyebrow">BUILT FOR WHAT’S NEXT</p><h2>Precision, at your fingertips.</h2></div>
+      <div class="detail-list"><div><span>01</span><p>Customizable parameters for confident treatment planning.</p></div><div><span>02</span><p>Intelligent cooling designed around patient comfort.</p></div><div><span>03</span><p>A refined interface that keeps your focus where it belongs.</p></div></div>
+    </section>
+
+    <section class="inquire" id="inquire"><p class="eyebrow">THE FUTURE, IN PRACTICE</p><h2>See what Velor<br><em>can do for you.</em></h2><a class="button button-light" href="mailto:hello@onyxmedicalgroups.com?subject=Velor%20demo%20request">Request a demo <span>↗</span></a></section>
+  </main>
+  <footer><a class="brand" href="#top"><span>ONYX</span><small>MEDICAL GROUPS</small></a><span>© 2026 ONYX Medical Groups</span><a href="#top">Back to top ↑</a></footer>
+  <script type="module" src="display.js"></script>
+</body>
+</html>

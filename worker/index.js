@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   ONYX Worker v5.3 — REGISTRY-FIRST OWNER + CONTACT RESEARCH
+   ONYX Worker v6 — MINIMAL OWNER + EMAIL RESEARCH
 
    Cloudflare encrypted variables:
      RESEND_API_KEY   re_...
@@ -46,8 +46,9 @@ export default {
     }
 
     try {
-      if (body.action === 'ping') return json({ ok: true, service: 'onyx-worker-v5.3-registry-first' }, 200, cors);
+      if (body.action === 'ping') return json({ ok: true, service: 'onyx-worker-v6-owner-email' }, 200, cors);
       if (body.action === 'email') return json(await sendEmail(body, env), 200, cors);
+      if (body.action === 'enrichContact') return json(await enrichContactStage(body, env), 200, cors);
       if (body.action === 'enrichOwner') return json(await enrichOwnerStage(body, env), 200, cors);
       if (body.action === 'enrichEmails') return json(await enrichEmailsStage(body, env), 200, cors);
       if (body.action === 'enrichBusiness') return json(await enrichBusinessStage(body, env), 200, cors);
@@ -291,6 +292,24 @@ async function crawlCompanySite(website) {
 /* ── OpenAI research ─────────────────────────────────────────── */
 
 const CONF = ['VERIFIED', 'HIGH', 'MEDIUM', 'LOW'];
+
+// The CRM's primary enrichment path deliberately asks for only the two useful
+// outcomes: a defensible owner name and a published owner/business email.
+// Confidence/evidence/source fields remain so saved data is auditable.
+const contactSchema = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    decisionMakerName: { type: 'string' },
+    decisionMakerConfidence: { type: 'string', enum: CONF },
+    decisionMakerEvidence: { type: 'string' },
+    email: { type: 'string' },
+    emailConfidence: { type: 'string', enum: CONF },
+    emailStatus: { type: 'string' },
+    sources: { type: 'array', items: { type: 'string' } }
+  },
+  required: ['decisionMakerName','decisionMakerConfidence','decisionMakerEvidence',
+    'email','emailConfidence','emailStatus','sources']
+};
 
 const ownerSchema = {
   type: 'object', additionalProperties: false,
@@ -984,6 +1003,51 @@ function compactCrawl(crawl) {
 
 /* ── Staged endpoints ────────────────────────────────────────── */
 
+const CONTACT_SYSTEM = `You research local businesses for a CRM. Return only the best-supported human owner name and the best published email address.
+
+OWNER:
+- Identify the exact business by name, address, phone, and domain.
+- Prefer official state entity filings and current officer/member/manager records, then BBB, professional licensing/NPI records, and credible business directories.
+- A registered agent alone is not proof of ownership. Never guess a person.
+- VERIFIED means an official record tied to the exact entity/location. HIGH means strong corroborated evidence. Return "Unknown" when unresolved.
+
+EMAIL:
+- Prefer a published professional email tied to the owner. Otherwise return the best published business inbox from the supplied company-site crawl or credible external source.
+- Never return a guessed email. Never use people-search/background-check sites or private household contact data.
+- Ignore template/platform addresses unrelated to the business. Return an empty string when no legitimate published email is found.
+
+Keep evidence and sources short. Spend the single web search on resolving these two fields only.`;
+
+async function enrichContactStage(body, env) {
+  const lead = body.lead || {};
+  if (!lead.name) return { ok: false, error: 'Lead needs at least a business name.' };
+  const started = Date.now();
+  const crawl = await crawlCompanySite(lead.website);
+  const siteEmails = mergeEmailCandidates(siteCandidates(crawl, lead, {})).slice(0, 10);
+  const prompt = `Find the owner name and best published email for this exact business.\n\n${leadFacts(lead)}\n\nPUBLISHED EMAILS FOUND DIRECTLY ON THE COMPANY WEBSITE:\n${JSON.stringify(siteEmails)}\n\nCOMPANY WEBSITE EXCERPTS (email context only; do not treat the site as ownership proof):\n${crawlContext(crawl).slice(0, 7000)}`;
+  const result = await openaiStructuredSearch(env, body, CONTACT_SYSTEM, prompt, contactSchema, 'onyx_owner_email', {
+    searchContextSize: 'low', maxOutputTokens: 1100, effort: 'low'
+  });
+  const ownerUnknown = !result.decisionMakerName || result.decisionMakerName === 'Unknown';
+  const email = usablePublicContactEmail(result.email) ? String(result.email).trim().toLowerCase() : '';
+  return {
+    ok: true,
+    stage: 'contact',
+    data: {
+      decisionMakerName: ownerUnknown ? 'Unknown' : result.decisionMakerName,
+      decisionMakerConfidence: result.decisionMakerConfidence || 'LOW',
+      decisionMakerEvidence: result.decisionMakerEvidence || 'No defensible ownership evidence found.',
+      email,
+      emailConfidence: email ? (result.emailConfidence || 'LOW') : 'LOW',
+      emailStatus: email ? (result.emailStatus || 'Published business contact') : 'No published email found',
+      sources: uniq(result.sources || []).slice(0, 10).join('\n'),
+      enrichedAt: new Date().toISOString(),
+      needsHumanReview: ownerUnknown || !email,
+      _researchMeta: { mode: 'owner-email-only', webPasses: 1, ms: Date.now() - started }
+    }
+  };
+}
+
 async function enrichOwnerStage(body, env) {
   const lead = body.lead || {};
   if (!lead.name) return { ok: false, error: 'Lead needs at least a business name.' };
@@ -1088,24 +1152,9 @@ async function enrichBusinessStage(body, env) {
   }
 }
 
-// Backward-compatible one-shot action. The CRM uses staged actions, but older clients can still call enrich.
+// Backward-compatible one-shot action now uses the same minimal owner/email path.
 async function enrich(body, env) {
-  const lead = body.lead || {};
-  if (!lead.name) return { ok: false, error: 'Lead needs at least a business name.' };
-  const ownerRes = await enrichOwnerStage(body, env);
-  if (!ownerRes.ok) return ownerRes;
-  const owner = ownerRes.data || {};
-  const [emailRes, businessRes] = await Promise.all([
-    enrichEmailsStage(Object.assign({}, body, { owner }), env),
-    enrichBusinessStage(Object.assign({}, body, { owner }), env)
-  ]);
-  const data = Object.assign({}, owner);
-  delete data._crawl;
-  if (emailRes.ok) Object.assign(data, emailRes.data || {});
-  if (businessRes.ok) Object.assign(data, businessRes.data || {});
-  delete data._researchMeta;
-  data.enrichedAt = new Date().toISOString();
-  return { ok: true, data };
+  return enrichContactStage(body, env);
 }
 
 function extractText(data) {
