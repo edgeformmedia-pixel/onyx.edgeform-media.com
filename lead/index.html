@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lead · ONYX</title>
 <link rel="stylesheet" href="/assets/styles.css">
+<link rel="stylesheet" href="/assets/campaigns.css">
 <style>
 .lead-nav{align-items:center;justify-content:flex-end}
 .lead-nav .btn{min-width:110px;font-size:18px;line-height:1;padding:6px 20px}
@@ -59,6 +60,11 @@
         <p class="msg" id="dmMsg"></p>
     </section>
 
+    <section class="panel" id="campaignPanel">
+      <div class="lead-section-heading"><div><p class="eyebrow">Email sequence</p><h2>Campaigns</h2></div><button class="btn primary compact" type="button" id="enrollLead">Add to campaign</button></div>
+      <div id="campaignList"><p class="hint">Loading…</p></div>
+    </section>
+
     <div class="lead-work-grid">
       <section class="panel">
         <h2>Pipeline</h2>
@@ -99,6 +105,7 @@
 
 <script src="/assets/config.js"></script>
 <script src="/assets/onyx.js"></script>
+<script src="/assets/campaign-ui.js"></script>
 <script>
 Onyx.requireAuth(function () {
   var id = Onyx.qs('id'), lead = null;
@@ -168,7 +175,7 @@ Onyx.requireAuth(function () {
   document.getElementById('previousLead').addEventListener('click', function () { goToLead(-1); });
   document.getElementById('nextLead').addEventListener('click', function () { goToLead(1); });
   document.addEventListener('keydown', function (e) {
-    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || document.querySelector('dialog[open]')) return;
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
     var button = document.getElementById(e.key === 'ArrowUp' ? 'previousLead' : 'nextLead');
@@ -318,8 +325,46 @@ Onyx.requireAuth(function () {
       }).join('') + '</div>';
   }
 
+  function loadCampaigns() {
+    var el = document.getElementById('campaignList');
+    OnyxCampaigns.call('leadCampaigns', { leadId: id }).then(function (r) {
+      if (!r.ok) { el.innerHTML = '<p class="msg bad">' + esc(r.error || 'Could not load campaigns.') + '</p>'; return; }
+      var suggestion = r.suggestedVariant ? '<p class="hint">Email version for this lead: <b>' + OnyxCampaigns.variantLabel(r.suggestedVariant.variant) + '</b> — ' + esc(r.suggestedVariant.reason) + '.</p>' : '';
+      if (r.suppressed) suggestion = '<p class="seq-warning bad">This address unsubscribed or bounced. It can’t be added to campaigns.</p>';
+      if (!r.members.length) { el.innerHTML = '<p class="hint" style="margin-bottom:6px">Not in any campaign yet.</p>' + suggestion; return; }
+      el.innerHTML = r.members.map(function (m) {
+        var steps = [];
+        for (var i = 1; i <= (Number(m.steps) || 0); i++) steps.push({ stepNo: i, name: '' });
+        var open = m.status === 'active' || m.status === 'paused';
+        var next = m.status === 'active' && m.nextDueAt ? ' · Email ' + (Number(m.currentStep) + 1) + (m.nextDueAt <= r.today ? ' is ' + OnyxCampaigns.dueLabel(m.nextDueAt, r.today).toLowerCase() : ' due ' + OnyxCampaigns.day(m.nextDueAt)) : '';
+        return '<div class="lead-campaign"><div class="lead-campaign-head"><div><strong><a href="/campaigns/?id=' + encodeURIComponent(m.campaignId) + '">' + esc(m.campaignName) + '</a></strong>' +
+          '<div class="hint">' + esc(m.email) + ' · <span class="seq-variant ' + esc(m.variant) + '">' + OnyxCampaigns.variantLabel(m.variant) + '</span>' + esc(next) + '</div></div>' +
+          '<span class="seq-state ' + esc(m.status) + '">' + OnyxCampaigns.statusLabel(m.status) + '</span></div>' +
+          OnyxCampaigns.timeline(m, r.sends, steps, { today: r.today }) +
+          (open ? '<div class="actions"><button class="btn ok compact" type="button" data-lead-member="' + m.id + '" data-op="replied">They replied</button>' +
+            (m.status === 'active' ? '<button class="btn quiet compact" type="button" data-lead-member="' + m.id + '" data-op="paused">Pause</button>' : '<button class="btn quiet compact" type="button" data-lead-member="' + m.id + '" data-op="active">Resume</button>') +
+            '<button class="btn quiet compact" type="button" data-lead-member="' + m.id + '" data-op="unsubscribed">Unsubscribe</button>' +
+            (m.status === 'active' && m.nextDueAt && m.nextDueAt <= r.today ? '<a class="btn primary compact" href="/campaigns/?id=' + encodeURIComponent(m.campaignId) + '">Send due email</a>' : '') + '</div>' : '') +
+          '</div>';
+      }).join('') + suggestion;
+    });
+  }
+  document.getElementById('campaignList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-lead-member]'); if (!b) return;
+    if (b.dataset.op === 'unsubscribed' && !confirm('Unsubscribe this lead? Their address will never be emailed again and the lead moves to Do Not Contact.')) return;
+    b.disabled = true;
+    OnyxCampaigns.call('updateMembers', { ids: [Number(b.dataset.leadMember)], op: b.dataset.op }).then(function (r) {
+      if (!r.ok) alert(r.error || 'Could not update.');
+      loadCampaigns(); load();
+    });
+  });
+  document.getElementById('enrollLead').addEventListener('click', function () {
+    OnyxCampaigns.enroll([id], { onDone: function () { loadCampaigns(); load(); } });
+  });
+
   updateLeadNavigation();
   load();
+  loadCampaigns();
 
   function load() {
     Onyx.sheet('getLead', { id: id }).then(function (r) {
@@ -338,7 +383,7 @@ Onyx.requireAuth(function () {
     document.getElementById('topActions').innerHTML =
       (String(l.isNationalChain) === 'Yes' ? '<span class="tag chain">national chain</span>' : '') +
       (l.leadScore ? '<span class="' + Onyx.scoreClass(l.leadScore) + '">' + esc(l.leadScore) + '</span>' : '') +
-      '<a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(id) + '">Open in email campaign</a>' +
+      '<a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(id) + '">Quick email</a>' +
       (l.phone ? '<a class="btn primary compact" href="/dial-mobile/?id=' + encodeURIComponent(id) + '">Call</a>' : '');
 
     ['dmName', 'dmTitle', 'email', 'dmConfidence', 'directPhone', 'linkedin', 'instagram',

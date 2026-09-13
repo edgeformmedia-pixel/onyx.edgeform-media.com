@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campaigns · ONYX</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<link rel="stylesheet" href="/assets/campaigns.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="wrap">
+
+  <!-- ── overview ───────────────────────────────────────── -->
+  <section id="overview" hidden>
+    <div class="page-head seq-head">
+      <div><p class="eyebrow">Onyx outreach</p><h1>Campaigns</h1><p class="hint">Each lead moves through Email 1 → 4, spaced out in business days. Nothing sends until you review it and click Send.</p></div>
+      <div class="actions"><button class="btn quiet" id="editEmails" type="button">Edit emails</button><a class="btn quiet" href="/email/">Quick one-off email</a><button class="btn primary" id="newCampaign" type="button">New campaign</button></div>
+    </div>
+    <div id="setup"></div>
+    <div class="seq-kpis" id="kpis"></div>
+    <div id="healthWarnings"></div>
+
+    <section class="panel">
+      <div class="seq-section-head">
+        <div><h2>Due today</h2><p class="hint" id="dueHint">Loading…</p></div>
+        <div class="actions"><button class="link" id="dueSelectAll" type="button">Select first 50</button><button class="link" id="dueSelectNone" type="button">Select none</button><button class="btn primary" id="dueReview" type="button" disabled>Review &amp; send</button></div>
+      </div>
+      <div class="tablewrap"><table class="grid small seq-table"><thead><tr><th class="sel-col"></th><th>Lead</th><th>Campaign</th><th>Next email</th><th>Version</th><th>Due</th><th></th></tr></thead><tbody id="dueRows"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody></table></div>
+    </section>
+
+    <section>
+      <div class="seq-section-head"><h2 class="hint" style="text-transform:uppercase;letter-spacing:.09em;font-weight:700">Your campaigns</h2><label class="chk"><input type="checkbox" id="showArchived"> Show archived</label></div>
+      <div class="seq-cards" id="cards"></div>
+    </section>
+  </section>
+
+  <!-- ── campaign detail ────────────────────────────────── -->
+  <section id="detail" hidden>
+    <a class="backlink" href="/campaigns/">&lsaquo; All campaigns</a>
+    <div class="page-head seq-head">
+      <div><p class="eyebrow">Campaign</p><h1 id="dName">Loading…</h1><p class="hint" id="dMeta"></p></div>
+      <div class="actions" id="dActions"></div>
+    </div>
+    <div class="seq-funnel" id="dFunnel"></div>
+    <section class="panel">
+      <div class="seq-section-head">
+        <div class="seq-tabs" id="dTabs" style="margin:0"></div>
+        <input type="search" id="dSearch" placeholder="Search lead, owner, email, city" style="min-width:240px">
+      </div>
+      <div class="tablewrap"><table class="grid small seq-table"><thead><tr><th class="sel-col"><input type="checkbox" id="dSelectAll" aria-label="Select all shown"></th><th>Lead</th><th>Version</th><th>Progress</th><th>Status</th><th></th></tr></thead><tbody id="dRows"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody></table></div>
+      <p class="hint" style="margin-top:10px">Add leads from <a href="/pipeline/">Pipeline</a>: tick the leads, then click <b>Add to campaign</b>. Replies aren’t detected automatically yet — mark them here so their emails stop.</p>
+      <div class="seq-bulk" id="dBulk" hidden>
+        <strong id="dBulkCount"></strong>
+        <button class="btn primary compact" type="button" data-bulk="send">Send next email</button>
+        <button class="btn quiet compact" type="button" data-bulk="replied">Mark replied</button>
+        <button class="btn quiet compact" type="button" data-bulk="paused">Pause</button>
+        <button class="btn quiet compact" type="button" data-bulk="active">Resume</button>
+        <button class="btn quiet compact" type="button" data-bulk="dueToday">Make due today</button>
+        <button class="btn quiet compact" type="button" data-bulk="removed">Remove</button>
+      </div>
+    </section>
+  </section>
+</main>
+
+<!-- review & send -->
+<dialog class="campaign-dialog seq-dialog" id="reviewDialog">
+  <div class="dialog-shell">
+    <div class="dialog-header"><div><p class="eyebrow">Final check</p><h2 id="reviewTitle">Review &amp; send</h2><p class="hint">Click a lead to see exactly what they will receive.</p></div><button class="dialog-close" type="button" data-close aria-label="Close">×</button></div>
+    <div class="seq-review" id="reviewBody">
+      <div class="seq-review-list" id="reviewList"></div>
+      <div class="seq-review-preview" id="reviewPreview"></div>
+    </div>
+    <div class="dialog-footer"><div style="display:grid;gap:6px;flex:1"><p class="seq-warning" id="reviewWarning" hidden></p><span class="msg" id="reviewMsg"></span></div><div><button class="btn quiet" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="reviewSend">Send</button></div></div>
+  </div>
+</dialog>
+
+<!-- new campaign -->
+<dialog class="campaign-dialog seq-dialog narrow" id="newDialog">
+  <div class="dialog-shell">
+    <div class="dialog-header"><div><p class="eyebrow">Email sequence</p><h2>New campaign</h2></div><button class="dialog-close" type="button" data-close aria-label="Close">×</button></div>
+    <div class="dialog-body seq-form">
+      <div><label for="newName">Campaign name</label><input id="newName" maxlength="80" placeholder="Detroit med spas – September"></div>
+      <div><label for="newFrom">Send from</label><select id="newFrom"></select></div>
+      <div><label for="newSequence">Emails</label><select id="newSequence"></select></div>
+      <p class="hint">Replies go to team@onyxmedicalgroups.com. After creating it, add leads from Pipeline.</p>
+    </div>
+    <div class="dialog-footer"><span class="msg" id="newMsg"></span><div><button class="btn quiet" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="newCreate">Create campaign</button></div></div>
+  </div>
+</dialog>
+
+<!-- sequence editor -->
+<dialog class="campaign-dialog seq-dialog" id="editorDialog">
+  <div class="dialog-shell">
+    <div class="dialog-header"><div><p class="eyebrow">Campaign emails</p><h2 id="editorTitle">Edit emails</h2><p class="hint" id="editorHint">Every email has two versions: one for practices getting their first laser, one for practices that already offer laser hair removal.</p></div><button class="dialog-close" type="button" data-close aria-label="Close">×</button></div>
+    <div style="padding:12px 20px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line)">
+      <div class="seq-tabs" id="editorSteps"></div>
+    </div>
+    <div class="seq-editor">
+      <div class="seq-editor-form">
+        <div class="seq-editor-row">
+          <div><label class="hint" for="edName">Email name</label><input id="edName" maxlength="60"></div>
+          <div><label class="hint" for="edDelay" id="edDelayLabel">Wait (business days)</label><input id="edDelay" type="number" min="0" max="60"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="seq-variant-switch" role="group" aria-label="Email version"><button type="button" data-ed-variant="first">First laser</button><button type="button" data-ed-variant="existing">Has laser</button></div>
+          <button class="link" type="button" id="edCopyVariant">Copy this text to the other version</button>
+        </div>
+        <div><label class="hint" for="edSubject">Subject</label><input id="edSubject" maxlength="180"></div>
+        <div class="seq-token-row"><span>Insert:</span><button type="button" data-token="{{firstName}}">First name</button><button type="button" data-token="{{business}}">Business</button><button type="button" data-token="{{city}}">City</button><button type="button" data-token="{{repFirstName}}">Your first name</button><button type="button" data-token="{{repPhone}}">Your phone</button><button type="button" data-token="{{repEmail}}">Team email</button></div>
+        <div><label class="hint" for="edBody">Message</label><textarea id="edBody" maxlength="12000"></textarea></div>
+        <div class="actions" style="margin:0"><button class="btn quiet compact" type="button" id="edRemove">Remove this email</button></div>
+      </div>
+      <div class="seq-review-preview">
+        <div class="seq-envelope"><span><b>Preview</b> Sample lead: Glow Aesthetics · Jane</span><span class="subject" id="edPreviewSubject"></span></div>
+        <iframe class="seq-preview-frame" id="edPreview" title="Email preview" sandbox=""></iframe>
+      </div>
+    </div>
+    <div class="dialog-footer"><span class="msg" id="editorMsg"></span><div><button class="btn quiet" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="editorSave">Save emails</button></div></div>
+  </div>
+</dialog>
+
+<script src="/assets/config.js"></script>
+<script src="/assets/onyx.js"></script>
+<script src="/assets/campaign-ui.js"></script>
+<script>
+Onyx.requireAuth(function (user) {
+  'use strict';
+  var C = OnyxCampaigns, esc = Onyx.esc, CFG = Onyx.cfg;
+  var ctx = null, dueRows = [], dueSelected = {}, detail = null, detailTab = 'all', detailSelected = {};
+  var campaignId = Onyx.qs('id');
+
+  document.querySelectorAll('dialog').forEach(function (d) {
+    d.addEventListener('click', function (e) { if (e.target.closest('[data-close]')) d.close(); });
+  });
+
+  function pct(n, d) { return d ? Math.round(n / d * 1000) / 10 : 0; }
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+  function senderOptions(selected) {
+    return (CFG.FROM_OPTIONS || ['customerrelations']).map(function (s) {
+      return '<option value="' + esc(s) + '"' + (s === selected ? ' selected' : '') + '>' + esc(s) + '@' + esc(CFG.SEND_DOMAIN || 'onyxmedicalgroups.com') + '</option>';
+    }).join('');
+  }
+
+  /* ── overview ───────────────────────────────────────── */
+
+  function loadOverview() {
+    document.getElementById('overview').hidden = false;
+    Promise.all([C.call('listCampaigns', {}), C.call('dueQueue', {})]).then(function (parts) {
+      var list = parts[0], due = parts[1];
+      if (!list.ok) { document.getElementById('cards').innerHTML = '<p class="msg bad">' + esc(list.error || 'Could not load campaigns.') + '</p>'; return; }
+      ctx = list;
+      renderSetup(); renderKpis(); renderCards();
+      dueRows = due.ok ? due.due : [];
+      dueSelected = {};
+      dueRows.slice(0, ctx.maxBatch).forEach(function (row) { dueSelected[row.id] = true; });
+      renderDue();
+    });
+  }
+
+  function setupProblems() {
+    var p = [];
+    if (!ctx.settings.postalAddress) p.push('postal');
+    if (!ctx.profile.phone) p.push('phone');
+    if (!ctx.profile.repFirstName || /^admin$/i.test(ctx.profile.repFirstName)) p.push('name');
+    return p;
+  }
+
+  function renderSetup() {
+    var problems = setupProblems(), isAdmin = ctx.profile.role === 'admin';
+    var form =
+      '<div class="seq-setup">' +
+        '<div><label for="setFirst">Your first name (signs every email)</label><input id="setFirst" maxlength="40" value="' + esc(ctx.profile.senderFirstName || (/^admin$/i.test(ctx.profile.repFirstName) ? '' : ctx.profile.repFirstName)) + '" placeholder="Thomas"></div>' +
+        '<div><label for="setPhone">Your phone (Email 1 signature)</label><input id="setPhone" maxlength="30" value="' + esc(ctx.profile.phone) + '" placeholder="(248) 555-0123"></div>' +
+        (isAdmin ? '<div style="grid-column:span 2"><label for="setPostal">Company postal address (required by law in every email)</label><input id="setPostal" maxlength="200" value="' + esc(ctx.settings.postalAddress) + '" placeholder="123 Main St, Suite 100, Troy, MI 48084"></div>' : '') +
+        '<div><button class="btn primary compact" type="button" id="setSave">Save</button> <span class="msg" id="setMsg"></span></div>' +
+      '</div>';
+    var el = document.getElementById('setup');
+    if (problems.length) {
+      var needs = [];
+      if (problems.indexOf('name') > -1) needs.push('your first name');
+      if (problems.indexOf('phone') > -1) needs.push('your phone number');
+      if (problems.indexOf('postal') > -1) needs.push(isAdmin ? 'the company postal address' : 'the company postal address (ask an admin)');
+      el.innerHTML = '<div class="seq-banner"><div style="flex:1"><b>Finish setup before sending</b><p>Emails need ' + needs.join(', ') + '.</p>' + form + '</div></div>';
+    } else {
+      el.innerHTML = '<details class="panel slim" style="margin-bottom:14px"><summary class="hint" style="cursor:pointer">Signature: <b>' + esc(ctx.profile.repFirstName) + '</b> · ' + esc(ctx.profile.phone) + ' · ' + esc(ctx.settings.postalAddress) + ' — edit</summary>' + form + '</details>';
+    }
+    document.getElementById('setSave').addEventListener('click', function () {
+      var payload = { senderFirstName: document.getElementById('setFirst').value, phone: document.getElementById('setPhone').value };
+      var postal = document.getElementById('setPostal');
+      if (postal) payload.postalAddress = postal.value;
+      Onyx.msg('setMsg', 'Saving…');
+      C.call('saveSettings', payload).then(function (r) {
+        if (!r.ok) { Onyx.msg('setMsg', r.error || 'Could not save.', 'bad'); return; }
+        loadOverview();
+      });
+    });
+  }
+
+  function renderKpis() {
+    var active = 0, replied = 0, unsub = 0;
+    ctx.campaigns.forEach(function (c) { active += (c.byStatus.active || 0) + (c.byStatus.paused || 0); replied += c.byStatus.replied || 0; unsub += c.byStatus.unsubscribed || 0; });
+    var capPct = pct(ctx.sentToday, ctx.dailyCap), capCls = ctx.sentToday >= 300 ? 'bad' : ctx.sentToday >= 150 ? 'warn' : '';
+    var bounce = pct(ctx.health.bounced30, ctx.health.sent30), unsubRate = pct(ctx.health.unsubscribed30, ctx.health.sent30);
+    document.getElementById('kpis').innerHTML =
+      '<article class="' + (ctx.dueTotal ? '' : '') + '"><span>Due today</span><strong>' + ctx.dueTotal + '</strong><small>emails ready to send</small></article>' +
+      '<article class="' + capCls + '"><span>Sent today</span><strong>' + ctx.sentToday + ' <small>/ ' + ctx.dailyCap + '</small></strong><div class="cap-bar ' + capCls + '"><i style="width:' + Math.min(100, capPct) + '%"></i></div></article>' +
+      '<article><span>In progress</span><strong>' + active + '</strong><small>leads mid-sequence</small></article>' +
+      '<article class="good"><span>Replied</span><strong>' + replied + '</strong><small>marked replied</small></article>' +
+      '<article class="' + (bounce >= 5 ? 'bad' : bounce >= 2 ? 'warn' : '') + '"><span>Bounce rate · 30d</span><strong>' + bounce + '%</strong><small>' + ctx.health.bounced30 + ' of ' + ctx.health.sent30 + ' sent</small></article>' +
+      '<article class="' + (unsubRate >= 1 ? 'warn' : '') + '"><span>Unsubscribes · 30d</span><strong>' + ctx.health.unsubscribed30 + '</strong><small>' + unsubRate + '% of sent</small></article>';
+
+    var warnings = [];
+    if (ctx.sentToday >= 300) warnings.push(['bad', 'You’ve sent ' + ctx.sentToday + ' emails today. That volume from one domain is very likely to land in spam — stop for today.']);
+    else if (ctx.sentToday >= 150) warnings.push(['', 'You’ve sent ' + ctx.sentToday + ' emails today. Past ~150 a day, inbox providers start filtering cold email to spam. Consider finishing tomorrow.']);
+    var enough = ctx.health.sent30 >= 20; // rates on a handful of emails are noise
+    if (enough && bounce >= 5) warnings.push(['bad', 'Bounce rate is ' + bounce + '%. Above 5% can get the sending domain blocked — pause and clean the email list before sending more.']);
+    else if (enough && bounce >= 2) warnings.push(['', 'Bounce rate is ' + bounce + '%. Keep it under 2% by only emailing addresses research marked as likely valid.']);
+    if (enough && unsubRate >= 1) warnings.push(['', unsubRate + '% of recent emails led to an unsubscribe. That usually means the list or the message is off-target.']);
+    document.getElementById('healthWarnings').innerHTML = warnings.map(function (w) {
+      return '<div class="seq-banner ' + w[0] + '"><div><b>Deliverability warning</b><p>' + esc(w[1]) + '</p></div></div>';
+    }).join('');
+  }
+
+  function renderCards() {
+    var showArchived = document.getElementById('showArchived').checked;
+    var list = ctx.campaigns.filter(function (c) { return showArchived || c.status !== 'archived'; });
+    var el = document.getElementById('cards');
+    if (!list.length) {
+      el.innerHTML = '<div class="panel empty-state" style="grid-column:1/-1"><h3>No campaigns yet</h3><p class="hint">Create a campaign, then add leads from Pipeline.</p></div>';
+      return;
+    }
+    el.innerHTML = list.map(function (c) {
+      var inFlow = c.byStep.reduce(function (a, b) { return a + b; }, 0);
+      var bar = c.byStep.map(function (n, i) { return n ? '<i style="width:' + pct(n, inFlow) + '%;background:' + C.STEP_COLORS[i % C.STEP_COLORS.length] + '" title="' + (i ? 'Sent Email ' + i : 'Not emailed yet') + ': ' + n + '"></i>' : ''; }).join('');
+      var legend = c.byStep.map(function (n, i) { return n ? '<span style="--c:' + C.STEP_COLORS[i % C.STEP_COLORS.length] + '">' + (i ? 'After email ' + i : 'Not started') + ' · ' + n + '</span>' : ''; }).join('');
+      var openRate = c.sent ? Math.round(c.opened / Math.max(1, c.total - (c.byStep[0] || 0)) * 100) : 0;
+      return '<a class="seq-card ' + c.status + '" href="/campaigns/?id=' + encodeURIComponent(c.id) + '">' +
+        '<div class="seq-card-top"><div><h3>' + esc(c.name) + '</h3><p class="hint">' + esc(c.fromLocal) + '@ · ' + plural(c.steps, 'email') + ' · ' + (c.status !== 'active' ? '<span class="seq-state ' + c.status + '">' + C.statusLabel(c.status) + '</span>' : 'created ' + esc(C.localDay(c.createdAt))) + '</p></div>' +
+        '<span class="seq-due-pill' + (c.due ? '' : ' zero') + '">' + c.due + ' due</span></div>' +
+        (inFlow ? '<div class="seq-steps-bar">' + bar + '</div><div class="seq-steps-legend">' + legend + '</div>' : '<p class="hint" style="margin-top:12px">' + (c.total ? 'Everyone has finished or stopped.' : 'No leads yet — add them from Pipeline.') + '</p>') +
+        '<div class="seq-card-stats">' +
+          '<div><b>' + c.total + '</b><span>Leads</span></div>' +
+          '<div><b>' + (c.sent ? openRate + '%' : '—') + '</b><span>Opened</span></div>' +
+          '<div class="ok"><b>' + (c.byStatus.replied || 0) + '</b><span>Replied</span></div>' +
+          '<div class="warn"><b>' + (c.byStatus.unsubscribed || 0) + '</b><span>Unsub</span></div>' +
+          '<div class="bad"><b>' + (c.byStatus.bounced || 0) + '</b><span>Bounced</span></div>' +
+        '</div></a>';
+    }).join('');
+  }
+
+  function renderDue() {
+    var body = document.getElementById('dueRows');
+    var count = Object.keys(dueSelected).filter(function (k) { return dueSelected[k]; }).length;
+    document.getElementById('dueHint').textContent = dueRows.length
+      ? plural(dueRows.length, 'email') + ' ready across active campaigns. Up to ' + ctx.maxBatch + ' can be sent at once.'
+      : 'Nothing is due. New leads you add show up here right away; follow-ups appear on their scheduled day.';
+    var button = document.getElementById('dueReview');
+    button.disabled = !count || count > ctx.maxBatch;
+    button.textContent = count > ctx.maxBatch ? 'Select ' + ctx.maxBatch + ' or fewer' : 'Review & send ' + (count || '');
+    if (!dueRows.length) { body.innerHTML = '<tr><td colspan="7" class="muted">Nothing due right now.</td></tr>'; return; }
+    body.innerHTML = dueRows.map(function (r) {
+      return '<tr><td class="sel-col"><input type="checkbox" data-due="' + r.id + '"' + (dueSelected[r.id] ? ' checked' : '') + ' aria-label="Select ' + esc(r.leadName) + '"></td>' +
+        '<td class="lead-cell"><a href="/lead/?id=' + encodeURIComponent(r.leadId) + '"><strong>' + esc(r.leadName || r.email) + '</strong></a><small>' + esc(r.email) + (r.city ? ' · ' + esc(r.city) : '') + '</small></td>' +
+        '<td><a href="/campaigns/?id=' + encodeURIComponent(r.campaignId) + '">' + esc(r.campaignName) + '</a></td>' +
+        '<td><b>Email ' + (Number(r.currentStep) + 1) + '</b> · ' + esc(r.stepName || '') + '</td>' +
+        '<td><span class="seq-variant ' + esc(r.variant) + '">' + C.variantLabel(r.variant) + '</span></td>' +
+        '<td>' + (r.nextDueAt < C.today() ? '<span class="seq-state paused">Overdue · ' + esc(C.day(r.nextDueAt)) + '</span>' : 'Today') + '</td>' +
+        '<td><button class="btn quiet compact" type="button" data-preview-due="' + r.id + '">Preview</button></td></tr>';
+    }).join('');
+  }
+
+  document.getElementById('dueRows').addEventListener('change', function (e) {
+    var box = e.target.closest('[data-due]'); if (!box) return;
+    dueSelected[box.dataset.due] = box.checked; renderDue();
+  });
+  document.getElementById('dueRows').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-preview-due]'); if (!b) return;
+    openReview([Number(b.dataset.previewDue)], loadOverview);
+  });
+  document.getElementById('dueSelectAll').addEventListener('click', function () { dueSelected = {}; dueRows.slice(0, ctx.maxBatch).forEach(function (r) { dueSelected[r.id] = true; }); renderDue(); });
+  document.getElementById('dueSelectNone').addEventListener('click', function () { dueSelected = {}; renderDue(); });
+  document.getElementById('dueReview').addEventListener('click', function () {
+    var ids = dueRows.filter(function (r) { return dueSelected[r.id]; }).map(function (r) { return r.id; });
+    openReview(ids, loadOverview);
+  });
+  document.getElementById('showArchived').addEventListener('change', renderCards);
+
+  /* ── new campaign ───────────────────────────────────── */
+
+  document.getElementById('newCampaign').addEventListener('click', function () {
+    document.getElementById('newFrom').innerHTML = senderOptions();
+    document.getElementById('newSequence').innerHTML = (ctx && ctx.sequences || []).map(function (s) { return '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>'; }).join('');
+    document.getElementById('newName').value = '';
+    Onyx.msg('newMsg', '');
+    document.getElementById('newDialog').showModal();
+    document.getElementById('newName').focus();
+  });
+  document.getElementById('newCreate').addEventListener('click', function () {
+    var button = this;
+    button.disabled = true; Onyx.msg('newMsg', 'Creating…');
+    C.call('createCampaign', { name: document.getElementById('newName').value, fromLocal: document.getElementById('newFrom').value, sequenceId: document.getElementById('newSequence').value }).then(function (r) {
+      button.disabled = false;
+      if (!r.ok) { Onyx.msg('newMsg', r.error || 'Could not create the campaign.', 'bad'); return; }
+      location.href = '/campaigns/?id=' + encodeURIComponent(r.id) + '&created=1';
+    });
+  });
+
+  /* ── review & send ──────────────────────────────────── */
+
+  var review = null;
+
+  function openReview(ids, after) {
+    ids = ids.slice(0, (ctx && ctx.maxBatch) || 50);
+    if (!ids.length) return;
+    var dialog = document.getElementById('reviewDialog');
+    review = { ids: ids, previews: {}, include: {}, active: ids[0], after: after, done: false };
+    ids.forEach(function (id) { review.include[id] = true; });
+    document.getElementById('reviewTitle').textContent = 'Review & send ' + plural(ids.length, 'email');
+    document.getElementById('reviewBody').style.display = '';
+    document.getElementById('reviewSend').hidden = false;
+    document.getElementById('reviewSend').disabled = true;
+    Onyx.msg('reviewMsg', 'Preparing personalized emails…');
+    document.getElementById('reviewList').innerHTML = '';
+    document.getElementById('reviewPreview').innerHTML = '';
+    dialog.showModal();
+    Promise.all(ids.map(function (id) {
+      return C.call('previewMember', { id: id }).then(function (p) { review.previews[id] = p; if (!p.ok || p.problems.length) review.include[id] = false; });
+    })).then(function () { Onyx.msg('reviewMsg', ''); renderReview(); });
+  }
+
+  function renderReview() {
+    var list = document.getElementById('reviewList');
+    list.innerHTML = review.ids.map(function (id) {
+      var p = review.previews[id] || {}, bad = !p.ok || (p.problems && p.problems.length);
+      return '<label class="' + (review.active === id ? 'on' : '') + '" data-review-item="' + id + '"><input type="checkbox" data-review-include="' + id + '"' + (review.include[id] ? ' checked' : '') + (bad ? ' disabled' : '') + '>' +
+        '<span><b>' + esc(p.leadName || 'Lead') + '</b><small>' + esc(p.to || '') + '</small>' +
+        (p.ok ? '<small>' + esc(p.campaignName) + ' · Email ' + p.stepNo + ' of ' + p.totalSteps + ' · ' + C.variantLabel(p.variant) + '</small>' : '') +
+        (bad ? '<small class="problem">' + esc(p.ok ? p.problems[0] : p.error) + '</small>' : '') + '</span></label>';
+    }).join('');
+    var p = review.previews[review.active] || {};
+    var preview = document.getElementById('reviewPreview');
+    if (!p.ok) { preview.innerHTML = '<p class="seq-problems">' + esc(p.error || 'Could not build this email.') + '</p>'; }
+    else {
+      preview.innerHTML = '<div class="seq-envelope"><span><b>From</b>' + esc(p.from) + '</span><span><b>Reply to</b>' + esc(p.replyTo) + '</span><span><b>To</b>' + esc(p.to) + '</span><span class="subject">' + esc(p.subject) + '</span></div>' +
+        (p.problems.length ? '<div class="seq-problems">' + p.problems.map(esc).join('<br>') + '</div>' : '') +
+        '<iframe class="seq-preview-frame" sandbox="" title="Email preview"></iframe>';
+      preview.querySelector('iframe').srcdoc = p.html;
+    }
+    var count = review.ids.filter(function (id) { return review.include[id]; }).length;
+    var send = document.getElementById('reviewSend');
+    send.disabled = !count;
+    send.textContent = count ? 'Send ' + plural(count, 'email') : 'Nothing to send';
+    var warn = document.getElementById('reviewWarning'), after = ctx ? ctx.sentToday + count : count;
+    var messages = [];
+    if (count > 25) messages.push('Sending ' + count + ' at once is a lot for cold email. Smaller groups spread through the day look more natural to inbox providers.');
+    if (ctx && after >= 150) messages.push('This brings today’s total to ' + after + '. Past ~150 cold emails a day from one domain, more of them land in spam.');
+    warn.hidden = !messages.length;
+    warn.className = 'seq-warning' + (ctx && after >= 300 ? ' bad' : '');
+    warn.textContent = messages.join(' ');
+  }
+
+  document.getElementById('reviewList').addEventListener('click', function (e) {
+    if (e.target.closest('input')) return;
+    var item = e.target.closest('[data-review-item]'); if (!item) return;
+    e.preventDefault();
+    review.active = Number(item.dataset.reviewItem); renderReview();
+  });
+  document.getElementById('reviewList').addEventListener('change', function (e) {
+    var box = e.target.closest('[data-review-include]'); if (!box) return;
+    review.include[box.dataset.reviewInclude] = box.checked; renderReview();
+  });
+  document.getElementById('reviewSend').addEventListener('click', function () {
+    var button = this, ids = review.ids.filter(function (id) { return review.include[id]; });
+    if (!ids.length) return;
+    button.disabled = true; button.textContent = 'Sending…';
+    Onyx.msg('reviewMsg', 'Sending ' + plural(ids.length, 'email') + ' one at a time…');
+    C.call('sendMembers', { ids: ids }).then(function (r) {
+      review.done = true;
+      if (!r.results) { button.disabled = false; button.textContent = 'Try again'; Onyx.msg('reviewMsg', r.error || 'Could not send.', 'bad'); return; }
+      document.getElementById('reviewList').innerHTML = r.results.map(function (x) {
+        return '<label><span>' + (x.ok ? '✓' : '✗') + '</span><span><b>' + esc(x.leadName || '') + '</b><small>' + esc(x.email || '') + (x.stepNo ? ' · Email ' + x.stepNo : '') + '</small>' + (x.ok ? '' : '<small class="problem">' + esc(x.error || 'Failed') + '</small>') + '</span></label>';
+      }).join('');
+      document.getElementById('reviewPreview').innerHTML = '<div class="seq-banner ' + (r.failed ? '' : 'good') + '" style="margin:16px"><div><b>' + r.sent + ' sent' + (r.failed ? ', ' + r.failed + ' not sent' : '') + '</b><p>Today: ' + r.sentToday + ' of ' + r.dailyCap + '. Follow-ups are scheduled automatically.</p></div></div>';
+      button.hidden = true;
+      Onyx.msg('reviewMsg', '');
+      if (review.after) review.after();
+    });
+  });
+
+  /* ── campaign detail ────────────────────────────────── */
+
+  function loadDetail() {
+    document.getElementById('detail').hidden = false;
+    Promise.all([C.call('getCampaign', { id: campaignId }), C.call('listCampaigns', {})]).then(function (parts) {
+      var r = parts[0];
+      if (parts[1].ok) ctx = parts[1];
+      if (!r.ok) { document.getElementById('dName').textContent = r.error || 'Campaign not found.'; return; }
+      detail = r;
+      detail.steps = (r.sequence ? r.sequence.steps : []).map(function (s) { return { stepNo: s.stepNo, name: s.name, delayDays: s.delayDays }; });
+      renderDetail();
+      if (Onyx.qs('created')) {
+        document.getElementById('dMeta').insertAdjacentHTML('afterend', '<div class="seq-banner good" style="margin-top:12px"><div><b>Campaign created</b><p>Now go to <a href="/pipeline/">Pipeline</a>, tick the leads you want, and click “Add to campaign”.</p></div></div>');
+        history.replaceState(null, '', '/campaigns/?id=' + encodeURIComponent(campaignId));
+      }
+    });
+  }
+
+  function memberFilter(m) {
+    var today = C.today();
+    if (detailTab === 'due') return m.status === 'active' && m.nextDueAt && m.nextDueAt <= today && detail.campaign.status === 'active';
+    return detailTab === 'all' ? true : m.status === detailTab;
+  }
+
+  function renderDetail() {
+    var c = detail.campaign, members = detail.members, today = C.today();
+    document.getElementById('dName').innerHTML = esc(c.name) + (c.status !== 'active' ? ' <span class="seq-state ' + c.status + '">' + C.statusLabel(c.status) + '</span>' : '');
+    document.getElementById('dMeta').textContent = 'From ' + c.fromLocal + '@' + (CFG.SEND_DOMAIN || 'onyxmedicalgroups.com') + ' · ' + (detail.sequence ? detail.sequence.name : '') + ' · created ' + C.localDay(c.createdAt) + ' by ' + (c.createdBy || '');
+    var due = members.filter(function (m) { return m.status === 'active' && m.nextDueAt && m.nextDueAt <= today; });
+    document.getElementById('dActions').innerHTML =
+      (c.status === 'active' ? '<button class="btn primary" type="button" data-camp="sendDue"' + (due.length ? '' : ' disabled') + '>Send due (' + due.length + ')</button><button class="btn quiet" type="button" data-camp="paused">Pause campaign</button>' : '') +
+      (c.status === 'paused' ? '<button class="btn primary" type="button" data-camp="active">Resume campaign</button>' : '') +
+      (c.status === 'archived' ? '<button class="btn quiet" type="button" data-camp="active">Restore</button>' : '<button class="btn quiet" type="button" data-camp="rename">Rename</button><button class="btn quiet" type="button" data-camp="archived">Archive</button>');
+
+    document.getElementById('dFunnel').innerHTML = detail.steps.map(function (s, i) {
+      var sentTo = {};
+      detail.sends.forEach(function (x) { if (Number(x.stepNo) === s.stepNo && x.status !== 'failed') sentTo[x.memberId] = true; });
+      var opened = {};
+      detail.sends.forEach(function (x) { if (Number(x.stepNo) === s.stepNo && Number(x.openCount) > 0) opened[x.memberId] = true; });
+      var nSent = Object.keys(sentTo).length, nOpen = Object.keys(opened).length;
+      var waiting = members.filter(function (m) { return m.status === 'active' && Number(m.currentStep) === s.stepNo - 1; }).length;
+      return '<article><span>Email ' + s.stepNo + (i ? ' · +' + s.delayDays + ' business days' : ' · day 1') + '</span><b>' + esc(s.name) + '</b><small>' + nSent + ' sent' + (nSent ? ' · ' + Math.round(nOpen / nSent * 100) + '% opened' : '') + ' · ' + waiting + ' waiting</small></article>';
+    }).join('');
+
+    var counts = { all: members.length, due: due.length };
+    members.forEach(function (m) { counts[m.status] = (counts[m.status] || 0) + 1; });
+    var tabs = [['all', 'All'], ['due', 'Due'], ['active', 'Active'], ['paused', 'Paused'], ['replied', 'Replied'], ['unsubscribed', 'Unsubscribed'], ['bounced', 'Bounced'], ['finished', 'Finished'], ['removed', 'Removed']];
+    document.getElementById('dTabs').innerHTML = tabs.filter(function (t) { return t[0] === 'all' || t[0] === 'due' || counts[t[0]]; }).map(function (t) {
+      return '<button type="button" class="' + (detailTab === t[0] ? 'on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '<b>' + (counts[t[0]] || 0) + '</b></button>';
+    }).join('');
+    renderDetailRows();
+  }
+
+  function renderDetailRows() {
+    var q = document.getElementById('dSearch').value.trim().toLowerCase();
+    var rows = detail.members.filter(memberFilter).filter(function (m) {
+      return !q || [m.leadName, m.dmName, m.email, m.city].join(' ').toLowerCase().indexOf(q) > -1;
+    });
+    var body = document.getElementById('dRows'), sendable = detail.campaign.status === 'active';
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="6" class="muted">' + (detail.members.length ? 'No leads match.' : 'No leads yet. Add them from Pipeline.') + '</td></tr>';
+    } else {
+      body.innerHTML = rows.map(function (m) {
+        var open = m.status === 'active' || m.status === 'paused';
+        var menu = '<select class="row-action" data-member-action="' + m.id + '" aria-label="Actions for ' + esc(m.leadName) + '"><option value="">Actions…</option>' +
+          (open ? '<option value="replied">Mark replied</option>' : '') +
+          (m.status === 'active' ? '<option value="paused">Pause</option><option value="dueToday">Make due today</option><option value="skip">Skip next email</option>' : '') +
+          (m.status === 'paused' || m.status === 'replied' || m.status === 'removed' ? '<option value="active">Resume</option>' : '') +
+          (open ? '<option value="unsubscribed">Mark unsubscribed (replied STOP)</option><option value="bounced">Mark bounced</option><option value="removed">Remove from campaign</option>' : '') +
+          '</select>';
+        return '<tr><td class="sel-col"><input type="checkbox" data-member="' + m.id + '"' + (detailSelected[m.id] ? ' checked' : '') + '></td>' +
+          '<td class="lead-cell"><a href="/lead/?id=' + encodeURIComponent(m.leadId) + '"><strong>' + esc(m.leadName) + '</strong></a><small>' + esc([m.dmName, m.email].filter(Boolean).join(' · ')) + '</small><small>' + esc([m.city, m.stage].filter(Boolean).join(' · ')) + '</small></td>' +
+          '<td><button type="button" class="seq-variant ' + esc(m.variant) + '" data-variant-member="' + m.id + '" title="' + esc(m.variantReason || '') + (open ? ' — click to switch' : '') + '"' + (open ? '' : ' disabled') + '>' + C.variantLabel(m.variant) + '</button></td>' +
+          '<td>' + C.timeline(m, detail.sends, detail.steps, { sendable: sendable }) + '</td>' +
+          '<td><span class="seq-state ' + esc(m.status) + '">' + C.statusLabel(m.status) + '</span>' + (m.statusAt && !open ? '<small class="hint" style="display:block">' + esc(C.localDay(m.statusAt)) + '</small>' : '') + '</td>' +
+          '<td>' + menu + '</td></tr>';
+      }).join('');
+    }
+    var selected = Object.keys(detailSelected).filter(function (k) { return detailSelected[k]; });
+    document.getElementById('dBulk').hidden = !selected.length;
+    document.getElementById('dBulkCount').textContent = plural(selected.length, 'lead') + ' selected';
+    document.getElementById('dSelectAll').checked = rows.length > 0 && rows.every(function (m) { return detailSelected[m.id]; });
+  }
+
+  function updateMembers(ids, op, extra) {
+    return C.call('updateMembers', Object.assign({ ids: ids, op: op }, extra || {})).then(function (r) {
+      if (!r.ok) alert(r.error || 'Could not update.');
+      return C.call('getCampaign', { id: campaignId }).then(function (fresh) {
+        if (fresh.ok) { detail.members = fresh.members; detail.sends = fresh.sends; detail.campaign = fresh.campaign; renderDetail(); }
+      });
+    });
+  }
+
+  document.getElementById('dTabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tab]'); if (!b) return;
+    detailTab = b.dataset.tab; detailSelected = {}; renderDetail();
+  });
+  document.getElementById('dSearch').addEventListener('input', renderDetailRows);
+  document.getElementById('dSelectAll').addEventListener('change', function () {
+    var on = this.checked, q = document.getElementById('dSearch').value.trim().toLowerCase();
+    detail.members.filter(memberFilter).filter(function (m) { return !q || [m.leadName, m.dmName, m.email, m.city].join(' ').toLowerCase().indexOf(q) > -1; })
+      .forEach(function (m) { detailSelected[m.id] = on; });
+    renderDetailRows();
+  });
+  document.getElementById('dRows').addEventListener('change', function (e) {
+    var box = e.target.closest('[data-member]');
+    if (box) { detailSelected[box.dataset.member] = box.checked; renderDetailRows(); return; }
+    var action = e.target.closest('[data-member-action]');
+    if (action && action.value) {
+      var op = action.value, id = Number(action.dataset.memberAction);
+      if (op === 'unsubscribed' && !confirm('Mark this lead unsubscribed? Their address will never be emailed again and the lead moves to Do Not Contact.')) { action.value = ''; return; }
+      if (op === 'removed' && !confirm('Remove this lead from the campaign? No more emails will be sent to them.')) { action.value = ''; return; }
+      action.disabled = true;
+      updateMembers([id], op);
+    }
+  });
+  document.getElementById('dRows').addEventListener('click', function (e) {
+    var send = e.target.closest('[data-send-member]');
+    if (send) { openReview([Number(send.dataset.sendMember)], loadDetail); return; }
+    var variant = e.target.closest('[data-variant-member]');
+    if (variant && !variant.disabled) {
+      var next = variant.classList.contains('existing') ? 'first' : 'existing';
+      variant.disabled = true;
+      updateMembers([Number(variant.dataset.variantMember)], 'variant', { variant: next });
+    }
+  });
+  document.getElementById('dBulk').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-bulk]'); if (!b) return;
+    var ids = Object.keys(detailSelected).filter(function (k) { return detailSelected[k]; }).map(Number);
+    if (!ids.length) return;
+    if (b.dataset.bulk === 'send') {
+      var ready = detail.members.filter(function (m) { return ids.indexOf(m.id) > -1 && m.status === 'active'; }).map(function (m) { return m.id; });
+      if (!ready.length) { alert('None of the selected leads are active.'); return; }
+      if (ready.length > ctx.maxBatch) { alert('Select ' + ctx.maxBatch + ' or fewer leads to send at once.'); return; }
+      openReview(ready, loadDetail);
+      return;
+    }
+    if (b.dataset.bulk === 'removed' && !confirm('Remove ' + plural(ids.length, 'lead') + ' from this campaign?')) return;
+    detailSelected = {};
+    updateMembers(ids, b.dataset.bulk);
+  });
+  document.getElementById('dActions').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-camp]'); if (!b) return;
+    var action = b.dataset.camp;
+    if (action === 'sendDue') {
+      var today = C.today();
+      var ids = detail.members.filter(function (m) { return m.status === 'active' && m.nextDueAt && m.nextDueAt <= today; }).map(function (m) { return m.id; });
+      openReview(ids.slice(0, ctx.maxBatch), loadDetail);
+      return;
+    }
+    var payload = { id: campaignId };
+    if (action === 'rename') {
+      var name = prompt('Campaign name', detail.campaign.name);
+      if (!name) return;
+      payload.name = name;
+    } else {
+      if (action === 'archived' && !confirm('Archive this campaign? Its leads stop receiving emails until you restore it.')) return;
+      payload.status = action;
+    }
+    C.call('updateCampaign', payload).then(function (r) { if (!r.ok) alert(r.error || 'Could not update.'); loadDetail(); });
+  });
+
+  /* ── sequence editor ────────────────────────────────── */
+
+  var editor = null;
+  var SAMPLE = { business: 'Glow Aesthetics', firstName: 'Jane', city: 'Troy', state: 'MI', repEmail: 'team@onyxmedicalgroups.com' };
+
+  function openEditor(sequenceId) {
+    var dialog = document.getElementById('editorDialog');
+    Onyx.msg('editorMsg', 'Loading…');
+    dialog.showModal();
+    C.call('getSequence', { id: sequenceId || '' }).then(function (r) {
+      if (!r.ok) { Onyx.msg('editorMsg', r.error || 'Could not load emails.', 'bad'); return; }
+      editor = { sequence: r.sequence, steps: JSON.parse(JSON.stringify(r.sequence.steps)), index: 0, variant: 'first' };
+      var admin = user.role === 'admin';
+      document.getElementById('editorTitle').textContent = r.sequence.name;
+      document.getElementById('editorSave').hidden = !admin;
+      Onyx.msg('editorMsg', admin ? '' : 'Only admins can change campaign emails.', admin ? '' : 'warn');
+      renderEditor();
+    });
+  }
+
+  function currentStep() { return editor.steps[editor.index]; }
+  function renderEditor() {
+    var step = currentStep(), copy = step[editor.variant] || (step[editor.variant] = { subject: '', body: '' });
+    document.getElementById('editorSteps').innerHTML = editor.steps.map(function (s, i) {
+      return '<button type="button" class="' + (i === editor.index ? 'on' : '') + '" data-ed-step="' + i + '">Email ' + (i + 1) + '<b>' + esc(s.name || '') + '</b></button>';
+    }).join('') + (editor.steps.length < 10 ? '<button type="button" data-ed-add>+ Add email</button>' : '');
+    document.getElementById('edName').value = step.name || '';
+    document.getElementById('edDelay').value = step.delayDays;
+    document.getElementById('edDelay').disabled = editor.index === 0;
+    document.getElementById('edDelayLabel').textContent = editor.index === 0 ? 'Sent when added' : 'Business days after Email ' + editor.index;
+    document.getElementById('edSubject').value = copy.subject;
+    document.getElementById('edBody').value = copy.body;
+    document.querySelectorAll('[data-ed-variant]').forEach(function (b) { b.classList.toggle('on', b.dataset.edVariant === editor.variant); });
+    document.getElementById('edRemove').disabled = editor.steps.length <= 1;
+    renderEditorPreview();
+  }
+  function renderEditorPreview() {
+    var copy = currentStep()[editor.variant];
+    var vars = Object.assign({}, SAMPLE, { repFirstName: (ctx && ctx.profile.repFirstName) || 'Thomas', repName: user.name, repPhone: (ctx && ctx.profile.phone) || '(248) 555-0123' });
+    function merge(t) { return String(t || '').replace(/\{\{\s*(\w+)\s*\}\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(vars, k) ? esc(vars[k]) :'<span style="background:#fde2e6;color:#a11f37">' + m + '</span>'; }); }
+    document.getElementById('edPreviewSubject').innerHTML = merge(esc(copy.subject));
+    var paragraphs = esc(copy.body).split(/\n{2,}/).map(function (p) { return '<p style="margin:0 0 14px">' + merge(p).replace(/\n/g, '<br>') + '</p>'; }).join('');
+    document.getElementById('edPreview').srcdoc = '<div style="max-width:620px;padding:18px 16px;font:15px/1.6 Arial,Helvetica,sans-serif;color:#1d1d1d">' + paragraphs +
+      '<div style="margin-top:30px;padding-top:12px;border-top:1px solid #e6e6e6;font:11px/1.6 Arial,sans-serif;color:#8c8c8c"><strong style="letter-spacing:1px;color:#555">ONYX MEDICAL GROUPS</strong><br>' + esc((ctx && ctx.settings.postalAddress) || '[postal address]') + '<br>Not the right fit? <u>Unsubscribe</u> and we won’t email you again.</div></div>';
+  }
+  function editorInput() {
+    var step = currentStep(), copy = step[editor.variant];
+    step.name = document.getElementById('edName').value;
+    if (editor.index > 0) step.delayDays = Number(document.getElementById('edDelay').value) || 0;
+    copy.subject = document.getElementById('edSubject').value;
+    copy.body = document.getElementById('edBody').value;
+    renderEditorPreview();
+  }
+  ['edName', 'edDelay', 'edSubject', 'edBody'].forEach(function (id) { document.getElementById(id).addEventListener('input', editorInput); });
+  document.getElementById('edName').addEventListener('change', renderEditor);
+  document.getElementById('editorSteps').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ed-step]');
+    if (b) { editor.index = Number(b.dataset.edStep); renderEditor(); return; }
+    if (e.target.closest('[data-ed-add]')) {
+      var last = editor.steps[editor.steps.length - 1];
+      editor.steps.push({ stepNo: editor.steps.length + 1, name: 'Email ' + (editor.steps.length + 1), delayDays: 3,
+        first: { subject: last.first.subject, body: '' }, existing: { subject: last.existing.subject, body: '' } });
+      editor.index = editor.steps.length - 1; renderEditor();
+    }
+  });
+  document.querySelectorAll('[data-ed-variant]').forEach(function (b) { b.addEventListener('click', function () { editor.variant = b.dataset.edVariant; renderEditor(); }); });
+  document.getElementById('edCopyVariant').addEventListener('click', function () {
+    var step = currentStep(), other = editor.variant === 'first' ? 'existing' : 'first';
+    if (!confirm('Replace the ' + C.variantLabel(other) + ' version of this email with this text?')) return;
+    step[other] = { subject: step[editor.variant].subject, body: step[editor.variant].body };
+    Onyx.msg('editorMsg', 'Copied to the ' + C.variantLabel(other) + ' version. Save to keep it.', 'good');
+  });
+  document.getElementById('edRemove').addEventListener('click', function () {
+    if (editor.steps.length <= 1 || !confirm('Remove Email ' + (editor.index + 1) + ' from the sequence?')) return;
+    editor.steps.splice(editor.index, 1);
+    editor.index = Math.max(0, editor.index - 1); renderEditor();
+  });
+  document.querySelectorAll('#editorDialog [data-token]').forEach(function (b) {
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    b.addEventListener('click', function () {
+      var target = document.activeElement === document.getElementById('edSubject') ? document.getElementById('edSubject') : document.getElementById('edBody');
+      var start = target.selectionStart == null ? target.value.length : target.selectionStart, end = target.selectionEnd == null ? start : target.selectionEnd;
+      target.value = target.value.slice(0, start) + b.dataset.token + target.value.slice(end);
+      target.focus(); target.setSelectionRange(start + b.dataset.token.length, start + b.dataset.token.length);
+      editorInput();
+    });
+  });
+  document.getElementById('editorSave').addEventListener('click', function () {
+    var button = this;
+    button.disabled = true; Onyx.msg('editorMsg', 'Saving…');
+    C.call('saveSequence', { id: editor.sequence.id, name: editor.sequence.name, steps: editor.steps }).then(function (r) {
+      button.disabled = false;
+      if (!r.ok) { Onyx.msg('editorMsg', r.error || 'Could not save.', 'bad'); return; }
+      editor.sequence = r.sequence;
+      Onyx.msg('editorMsg', 'Saved. Future emails use the new text.', 'good');
+    });
+  });
+  document.getElementById('editEmails').addEventListener('click', function () { openEditor(''); });
+
+  if (campaignId) loadDetail(); else loadOverview();
+});
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline · ONYX</title>
 <link rel="stylesheet" href="/assets/styles.css">
+<link rel="stylesheet" href="/assets/campaigns.css">
 </head>
 <body>
 <div id="chrome"></div>
@@ -44,11 +45,18 @@
   <div class="tablewrap">
     <table class="grid">
       <thead><tr>
+        <th class="sel-col"><input type="checkbox" id="selectPage" aria-label="Select all leads on this page"></th>
         <th style="width:64px">Score</th><th>Business</th><th>City</th>
         <th>Decision maker</th><th>Email</th><th>Phone</th><th>Stage</th><th>Owner</th><th>Campaign</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
+  </div>
+
+  <div class="pipe-select-bar" id="selectBar" hidden>
+    <strong id="selectCount"></strong>
+    <button class="btn quiet compact" type="button" id="selectClear">Clear</button>
+    <button class="btn primary compact" type="button" id="selectEnroll">Add to campaign</button>
   </div>
 
   <div class="pager">
@@ -60,9 +68,11 @@
 
 <script src="/assets/config.js"></script>
 <script src="/assets/onyx.js"></script>
+<script src="/assets/campaign-ui.js"></script>
 <script>
 Onyx.requireAuth(function () {
   var page = 0, size = 50, selectedCities = [], cityIndex = [], bulkStop = false, bulkRunning = false;
+  var selectedLeads = {}, pageLeadIds = [];
 
   if (Onyx.qs('needsEmail')) document.getElementById('emailStatus').value = 'missing';
   if (Onyx.qs('needsResearch')) document.getElementById('noResearch').checked = true;
@@ -130,13 +140,13 @@ Onyx.requireAuth(function () {
   });
 
   function load() {
-    document.getElementById('rows').innerHTML = '<tr><td colspan="9" class="muted">Loading...</td></tr>';
+    document.getElementById('rows').innerHTML = '<tr><td colspan="10" class="muted">Loading...</td></tr>';
     Onyx.sheet('listLeads', payload()).then(render);
   }
 
   function render(r) {
     var tb = document.getElementById('rows');
-    if (!r.ok) { tb.innerHTML = '<tr><td colspan="9" class="muted">' + Onyx.esc(r.error) + '</td></tr>'; return; }
+    if (!r.ok) { tb.innerHTML = '<tr><td colspan="10" class="muted">' + Onyx.esc(r.error) + '</td></tr>'; return; }
 
     document.getElementById('sub').textContent = r.total + ' leads match';
 
@@ -151,12 +161,13 @@ Onyx.requireAuth(function () {
     } catch (_) { }
 
     if (!r.leads.length) {
-      tb.innerHTML = '<tr><td colspan="9"><div class="empty-state"><h3>Nothing here</h3>' +
+      tb.innerHTML = '<tr><td colspan="10"><div class="empty-state"><h3>Nothing here</h3>' +
         '<p class="hint">Loosen the filters, or run the LeadHunter extension to pull more leads in.</p>' +
         '</div></td></tr>';
     } else {
       tb.innerHTML = r.leads.map(function (l) {
         return '<tr class="click" data-id="' + Onyx.esc(l.id) + '">' +
+          '<td class="sel-col"><input type="checkbox" data-select-lead="' + Onyx.esc(l.id) + '"' + (selectedLeads[l.id] ? ' checked' : '') + ' aria-label="Select ' + Onyx.esc(l.name) + '"></td>' +
           '<td><span class="' + Onyx.scoreClass(l.leadScore) + '">' + (l.leadScore || '-') + '</span></td>' +
           '<td>' + Onyx.esc(l.name) +
             (String(l.isNationalChain) === 'Yes' ? '<span class="tag chain">chain</span>' : '') +
@@ -170,9 +181,11 @@ Onyx.requireAuth(function () {
           '<td>' + Onyx.esc(l.phone || '') + '</td>' +
           '<td>' + Onyx.esc(l.stage || '') + '</td>' +
           '<td>' + Onyx.esc(l.owner || '') + '</td>' +
-          '<td><a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(l.id) + '">Campaign</a></td></tr>';
+          '<td><button class="btn quiet compact" type="button" data-enroll-lead="' + Onyx.esc(l.id) + '"' + (l.email ? '' : ' disabled title="No email yet"') + '>Add to campaign</button></td></tr>';
       }).join('');
     }
+    pageLeadIds = (r.leads || []).map(function (l) { return String(l.id); });
+    updateSelection();
 
     var start = r.page * size;
     document.getElementById('pageInfo').textContent = r.total
@@ -181,7 +194,35 @@ Onyx.requireAuth(function () {
     document.getElementById('next').disabled = start + size >= r.total;
   }
 
+  function updateSelection() {
+    var ids = Object.keys(selectedLeads).filter(function (id) { return selectedLeads[id]; });
+    document.getElementById('selectBar').hidden = !ids.length;
+    document.getElementById('selectCount').textContent = ids.length + ' lead' + (ids.length === 1 ? '' : 's') + ' selected';
+    document.getElementById('selectPage').checked = pageLeadIds.length > 0 && pageLeadIds.every(function (id) { return selectedLeads[id]; });
+  }
+  document.getElementById('rows').addEventListener('change', function (e) {
+    var box = e.target.closest('[data-select-lead]'); if (!box) return;
+    selectedLeads[box.dataset.selectLead] = box.checked; updateSelection();
+  });
+  document.getElementById('selectPage').addEventListener('change', function () {
+    var on = this.checked;
+    pageLeadIds.forEach(function (id) { selectedLeads[id] = on; });
+    document.querySelectorAll('[data-select-lead]').forEach(function (box) { box.checked = on; });
+    updateSelection();
+  });
+  document.getElementById('selectClear').addEventListener('click', function () {
+    selectedLeads = {};
+    document.querySelectorAll('[data-select-lead]').forEach(function (box) { box.checked = false; });
+    updateSelection();
+  });
+  document.getElementById('selectEnroll').addEventListener('click', function () {
+    var ids = Object.keys(selectedLeads).filter(function (id) { return selectedLeads[id]; });
+    OnyxCampaigns.enroll(ids, { onDone: function () { selectedLeads = {}; load(); } });
+  });
+
   document.getElementById('rows').addEventListener('click', function (e) {
+    var enroll = e.target.closest('[data-enroll-lead]');
+    if (enroll) { OnyxCampaigns.enroll([enroll.dataset.enrollLead]); return; }
     var tr = e.target.closest('tr[data-id]');
     if (e.target.closest('a,button,input,select,label')) return;
     if (tr) location.href = '/lead/?id=' + encodeURIComponent(tr.dataset.id) + '&from=pipeline';

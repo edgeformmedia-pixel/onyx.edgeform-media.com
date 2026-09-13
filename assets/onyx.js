@@ -108,7 +108,8 @@ window.Onyx = (function () {
     { href: '/bad-reviewed/', label: 'Bad Reviewed Locations' },
     { href: '/calls/', label: 'Call list' },
     { href: '/dial-mobile/', label: 'Dial mobile' },
-    { href: '/email/', label: 'Campaigns' },
+    { href: '/campaigns/', label: 'Campaigns' },
+    { href: '/email/', label: 'Quick email' },
     { href: '/admin/', label: 'Admin', adminOnly: true }
   ];
 
