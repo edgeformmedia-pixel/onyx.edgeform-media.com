@@ -323,14 +323,53 @@ function renderCopy(copy, vars) {
   return { subject: merge(copy.subject), body: merge(copy.body).replace(/\n{3,}/g, '\n\n').trim(), problems: [...problems] };
 }
 
+// ONYX_EMAIL_DESIGN — keep identical in campaign-worker/index.js and email/index.html.
+function onyxEmailHtml(bodyText, opts) {
+  opts = opts || {};
+  var escHtml = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+  var blocks = String(bodyText || '').replace(/\r/g, '').trim().split(/\n{2,}/).map(function (part) {
+    var lines = part.split('\n');
+    if (lines.every(function (l) { return /^\s*[•\-–]\s+/.test(l); })) {
+      return '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:2px 0 18px;border-collapse:collapse">' + lines.map(function (l) {
+        var item = escHtml(l.replace(/^\s*[•\-–]\s+/, '')).replace(/^([^—:]{2,60})(\s+—\s+|:\s+)/, '<strong style="color:#111111">$1</strong>$2');
+        return '<tr><td valign="top" style="padding:3px 12px 3px 2px;font:15px/1.6 ' + font + ';color:#b08d57">&#9670;</td><td style="padding:3px 0;font:15px/1.6 ' + font + ';color:#2b2b2b">' + item + '</td></tr>';
+      }).join('') + '</table>';
+    }
+    if (/^(best|thanks|thank you|regards|kind regards|cheers|talk soon),?$/i.test(lines[0].trim()) && lines.length > 1) {
+      return '<p style="margin:26px 0 0;font:15px/1.6 ' + font + ';color:#2b2b2b">' + escHtml(lines[0]) + '</p>' +
+        '<p style="margin:2px 0 0;font:600 16px/1.5 ' + font + ';color:#111111">' + escHtml(lines[1]) + '</p>' +
+        (lines.length > 2 ? '<p style="margin:2px 0 0;font:13px/1.6 ' + font + ';color:#6b6b6b">' + lines.slice(2).map(escHtml).join('<br>') + '</p>' : '');
+    }
+    if (/^\s*[“"]/.test(part) && /[”"]\s*$/.test(part)) {
+      return '<p style="margin:0 0 18px;padding:4px 0 4px 16px;border-left:3px solid #b08d57;font:italic 16px/1.6 Georgia,serif;color:#3a3a3a">' + escHtml(part).replace(/\n/g, '<br>') + '</p>';
+    }
+    return '<p style="margin:0 0 18px;font:15px/1.7 ' + font + ';color:#2b2b2b">' + escHtml(part).replace(/\n/g, '<br>') + '</p>';
+  }).join('');
+  var footerLines = [];
+  if (opts.postal) footerLines.push(escHtml(opts.postal));
+  if (opts.optOutHtml) footerLines.push(opts.optOutHtml);
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>' +
+    '<body style="margin:0;padding:0;background:#f3f2ef">' +
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f2ef;border-collapse:collapse"><tr><td align="center" style="padding:28px 12px">' +
+    '<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;background:#ffffff;border:1px solid #e6e3dd;border-radius:12px">' +
+    '<tr><td style="height:4px;line-height:4px;font-size:0;background:#111111;border-radius:12px 12px 0 0">&nbsp;</td></tr>' +
+    '<tr><td style="padding:36px 40px 18px">' + blocks + '</td></tr>' +
+    '<tr><td style="padding:0 40px"><div style="height:1px;line-height:1px;font-size:0;background:#ece9e3">&nbsp;</div></td></tr>' +
+    '<tr><td align="center" style="padding:26px 40px 30px">' +
+    '<a href="https://www.instagram.com/onyxmedicalgroups/" style="text-decoration:none"><img src="https://onyx.edgeform-media.com/assets/onyx-medical-groups-logo.jpg" width="92" height="92" alt="Onyx Medical Groups" style="display:block;width:92px;height:92px;border:0;margin:0 auto"></a>' +
+    '<p style="margin:10px 0 0;font:12px/1.6 ' + font + ';color:#6b6b6b">Equipment, training &amp; launch support for medical aesthetics practices</p>' +
+    '<p style="margin:6px 0 0;font:12px/1.6 ' + font + '"><a href="https://www.instagram.com/onyxmedicalgroups/" style="color:#b08d57;text-decoration:none;font-weight:600">@onyxmedicalgroups</a></p>' +
+    (footerLines.length ? '<p style="margin:14px 0 0;font:11px/1.6 ' + font + ';color:#9a9a9a">' + footerLines.join('<br>') + '</p>' : '') +
+    '</td></tr></table>' +
+    '</td></tr></table></body></html>';
+}
+
 function sequenceEmailHtml(body, unsubUrl, postal) {
-  const paragraphs = body.split(/\n{2,}/).map(part => `<p style="margin:0 0 14px">${esc(part).replace(/\n/g, '<br>')}</p>`).join('');
-  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#ffffff">' +
-    `<div style="max-width:620px;padding:18px 16px;font:15px/1.6 Arial,Helvetica,sans-serif;color:#1d1d1d">${paragraphs}` +
-    '<div style="margin-top:30px;padding-top:12px;border-top:1px solid #e6e6e6;font:11px/1.6 Arial,Helvetica,sans-serif;color:#8c8c8c">' +
-    '<strong style="letter-spacing:1px;color:#555555">ONYX MEDICAL GROUPS</strong><br>' + esc(postal) +
-    `<br>Not the right fit? <a href="${unsubUrl}" style="color:#8c8c8c;text-decoration:underline">Unsubscribe</a> and we won’t email you again.` +
-    '</div></div></body></html>';
+  return onyxEmailHtml(body, {
+    postal,
+    optOutHtml: `Not the right fit? <a href="${unsubUrl}" style="color:#9a9a9a;text-decoration:underline">Unsubscribe</a> and we won’t email you again.`
+  });
 }
 
 function sequenceEmailText(body, unsubUrl, postal) {

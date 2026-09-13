@@ -176,18 +176,52 @@ Onyx.requireAuth(function (user) {
   document.getElementById('addPickerSelection').addEventListener('click', function () { var added = 0; pickerLeads.forEach(function (lead) { if (pickerSelected[leadKey(lead)] && addToQueue(lead, true)) added++; }); renderQueue(); leadPicker.close(); Onyx.msg('m', added ? added + ' lead' + (added === 1 ? '' : 's') + ' added.' : 'No new leads were added.', added ? 'good' : 'warn'); });
   document.querySelectorAll('[data-quick-add]').forEach(function (button) { button.addEventListener('click', function () { var requested = Math.min(Number(button.dataset.quickAdd), 10 - queue.length); if (!requested) return; button.disabled = true; Onyx.msg('m', 'Finding unemailed leads…'); Onyx.campaign('listCampaignLeads', { audience: 'never' }).then(function (result) { button.disabled = false; if (!result.ok) { Onyx.msg('m', result.error || 'Could not load leads.', 'bad'); return; } var added = 0; (result.leads || []).some(function (lead) { if (added >= requested) return true; if (addToQueue(lead, true)) added++; return false; }); renderQueue(); Onyx.msg('m', added ? added + ' unemailed lead' + (added === 1 ? '' : 's') + ' added.' : 'No unemailed leads are available.', added ? 'good' : 'warn'); }); }); });
 
+  // ONYX_EMAIL_DESIGN — keep identical in campaign-worker/index.js and email/index.html.
+  function onyxEmailHtml(bodyText, opts) {
+    opts = opts || {};
+    var escHtml = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+    var blocks = String(bodyText || '').replace(/\r/g, '').trim().split(/\n{2,}/).map(function (part) {
+      var lines = part.split('\n');
+      if (lines.every(function (l) { return /^\s*[•\-–]\s+/.test(l); })) {
+        return '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:2px 0 18px;border-collapse:collapse">' + lines.map(function (l) {
+          var item = escHtml(l.replace(/^\s*[•\-–]\s+/, '')).replace(/^([^—:]{2,60})(\s+—\s+|:\s+)/, '<strong style="color:#111111">$1</strong>$2');
+          return '<tr><td valign="top" style="padding:3px 12px 3px 2px;font:15px/1.6 ' + font + ';color:#b08d57">&#9670;</td><td style="padding:3px 0;font:15px/1.6 ' + font + ';color:#2b2b2b">' + item + '</td></tr>';
+        }).join('') + '</table>';
+      }
+      if (/^(best|thanks|thank you|regards|kind regards|cheers|talk soon),?$/i.test(lines[0].trim()) && lines.length > 1) {
+        return '<p style="margin:26px 0 0;font:15px/1.6 ' + font + ';color:#2b2b2b">' + escHtml(lines[0]) + '</p>' +
+          '<p style="margin:2px 0 0;font:600 16px/1.5 ' + font + ';color:#111111">' + escHtml(lines[1]) + '</p>' +
+          (lines.length > 2 ? '<p style="margin:2px 0 0;font:13px/1.6 ' + font + ';color:#6b6b6b">' + lines.slice(2).map(escHtml).join('<br>') + '</p>' : '');
+      }
+      if (/^\s*[“"]/.test(part) && /[”"]\s*$/.test(part)) {
+        return '<p style="margin:0 0 18px;padding:4px 0 4px 16px;border-left:3px solid #b08d57;font:italic 16px/1.6 Georgia,serif;color:#3a3a3a">' + escHtml(part).replace(/\n/g, '<br>') + '</p>';
+      }
+      return '<p style="margin:0 0 18px;font:15px/1.7 ' + font + ';color:#2b2b2b">' + escHtml(part).replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+    var footerLines = [];
+    if (opts.postal) footerLines.push(escHtml(opts.postal));
+    if (opts.optOutHtml) footerLines.push(opts.optOutHtml);
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>' +
+      '<body style="margin:0;padding:0;background:#f3f2ef">' +
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f2ef;border-collapse:collapse"><tr><td align="center" style="padding:28px 12px">' +
+      '<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;background:#ffffff;border:1px solid #e6e3dd;border-radius:12px">' +
+      '<tr><td style="height:4px;line-height:4px;font-size:0;background:#111111;border-radius:12px 12px 0 0">&nbsp;</td></tr>' +
+      '<tr><td style="padding:36px 40px 18px">' + blocks + '</td></tr>' +
+      '<tr><td style="padding:0 40px"><div style="height:1px;line-height:1px;font-size:0;background:#ece9e3">&nbsp;</div></td></tr>' +
+      '<tr><td align="center" style="padding:26px 40px 30px">' +
+      '<a href="https://www.instagram.com/onyxmedicalgroups/" style="text-decoration:none"><img src="https://onyx.edgeform-media.com/assets/onyx-medical-groups-logo.jpg" width="92" height="92" alt="Onyx Medical Groups" style="display:block;width:92px;height:92px;border:0;margin:0 auto"></a>' +
+      '<p style="margin:10px 0 0;font:12px/1.6 ' + font + ';color:#6b6b6b">Equipment, training &amp; launch support for medical aesthetics practices</p>' +
+      '<p style="margin:6px 0 0;font:12px/1.6 ' + font + '"><a href="https://www.instagram.com/onyxmedicalgroups/" style="color:#b08d57;text-decoration:none;font-weight:600">@onyxmedicalgroups</a></p>' +
+      (footerLines.length ? '<p style="margin:14px 0 0;font:11px/1.6 ' + font + ';color:#9a9a9a">' + footerLines.join('<br>') + '</p>' : '') +
+      '</td></tr></table>' +
+      '</td></tr></table></body></html>';
+  }
   function emailHtml(value) {
-    var foot = ['<strong style="letter-spacing:1px;color:#555555">ONYX MEDICAL GROUPS</strong>'];
-    if (postalAddress) foot.push(Onyx.esc(postalAddress));
-    if (CFG.UNSUBSCRIBE_LINE) foot.push(Onyx.esc(CFG.UNSUBSCRIBE_LINE));
-    var paragraphs = String(value || '').split(/\n{2,}/).map(function (part) { return '<p style="margin:0 0 14px">' + Onyx.esc(part).replace(/\n/g, '<br>') + '</p>'; }).join('');
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#ffffff">' +
-      '<div style="max-width:620px;padding:18px 16px;font:15px/1.6 Arial,Helvetica,sans-serif;color:#1d1d1d">' + paragraphs +
-      '<div style="margin-top:30px;padding-top:12px;border-top:1px solid #e6e6e6;font:11px/1.6 Arial,Helvetica,sans-serif;color:#8c8c8c">' + foot.join('<br>') + '</div>' +
-      '</div></body></html>';
+    return onyxEmailHtml(value, { postal: postalAddress, optOutHtml: CFG.UNSUBSCRIBE_LINE ? Onyx.esc(CFG.UNSUBSCRIBE_LINE) : '' });
   }
   function validationError() { var recipients = selected(); if (!campaignNameInput.value.trim()) return 'Name this campaign.'; if (!cleanLocal(fromInput.value)) return 'Enter a sender name.'; if (!recipients.length) return 'Select at least one recipient.'; if (recipients.length > 10) return 'Select no more than 10 recipients.'; if (recipients.some(function (item) { return !validEmail(item.email); })) return 'Correct the invalid recipient email before sending.'; var emailSet = {}; if (recipients.some(function (item) { var key = String(item.email).toLowerCase(); if (emailSet[key]) return true; emailSet[key] = true; return false; })) return 'Remove the duplicate recipient before sending.'; if (!subjectInput.value.trim()) return 'Add a subject line.'; if (!bodyInput.value.trim()) return 'The message is empty.'; if (!postalAddress) return 'An admin needs to add the company postal address on the Campaigns page before sending.'; var problems = missingRepFields(subjectInput.value + ' ' + bodyInput.value); if (problems.length) return problems[0]; return ''; }
-  function openPreview(index) { var recipients = selected(); if (!recipients.length) { Onyx.msg('m', 'Select a recipient to preview.', 'bad'); return; } previewIndex = Math.max(0, Math.min(Number(index) || 0, recipients.length - 1)); var select = document.getElementById('previewRecipient'); select.innerHTML = recipients.map(function (item, i) { return '<option value="' + i + '"' + (i === previewIndex ? ' selected' : '') + '>' + Onyx.esc(item.name || item.email) + ' — ' + Onyx.esc(item.email) + '</option>'; }).join(''); var item = recipients[previewIndex], subject = mergeFor(subjectInput.value, item), body = mergeFor(bodyInput.value, item); document.getElementById('previewEnvelope').innerHTML = '<div class="preview-routing"><span><b>From</b> ' + Onyx.esc(profile.repFirstName + ' at Onyx Medical Groups <' + fullAddress() + '>') + '</span><span><b>Reply to</b> team@onyxmedicalgroups.com</span><span><b>To</b> ' + Onyx.esc(item.email) + '</span><strong>' + Onyx.esc(subject) + '</strong></div><div class="preview-email">' + emailHtml(body) + '</div>'; document.getElementById('previewPanel').hidden = false; document.getElementById('previewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  function openPreview(index) { var recipients = selected(); if (!recipients.length) { Onyx.msg('m', 'Select a recipient to preview.', 'bad'); return; } previewIndex = Math.max(0, Math.min(Number(index) || 0, recipients.length - 1)); var select = document.getElementById('previewRecipient'); select.innerHTML = recipients.map(function (item, i) { return '<option value="' + i + '"' + (i === previewIndex ? ' selected' : '') + '>' + Onyx.esc(item.name || item.email) + ' — ' + Onyx.esc(item.email) + '</option>'; }).join(''); var item = recipients[previewIndex], subject = mergeFor(subjectInput.value, item), body = mergeFor(bodyInput.value, item); document.getElementById('previewEnvelope').innerHTML = '<div class="preview-routing"><span><b>From</b> ' + Onyx.esc(profile.repFirstName + ' at Onyx Medical Groups <' + fullAddress() + '>') + '</span><span><b>Reply to</b> team@onyxmedicalgroups.com</span><span><b>To</b> ' + Onyx.esc(item.email) + '</span><strong>' + Onyx.esc(subject) + '</strong></div><iframe class="preview-email" title="Email preview" sandbox="allow-popups" style="display:block;width:100%;height:760px;border:0;background:#f3f2ef"></iframe>'; document.getElementById('previewEnvelope').querySelector('iframe').srcdoc = emailHtml(body); document.getElementById('previewPanel').hidden = false; document.getElementById('previewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   document.getElementById('previewRecipient').addEventListener('change', function () { openPreview(Number(this.value)); });
   document.getElementById('closePreview').addEventListener('click', function () { document.getElementById('previewPanel').hidden = true; });
   function openSendReview() { var error = validationError(); if (error) { Onyx.msg('m', error, 'bad'); return; } var recipients = selected(); document.getElementById('sendReviewBody').innerHTML = '<div class="send-review-summary"><div><span>Campaign</span><strong>' + Onyx.esc(campaignNameInput.value.trim()) + '</strong></div><div><span>From</span><strong>' + Onyx.esc(fullAddress()) + '</strong></div><div><span>Reply to</span><strong>team@onyxmedicalgroups.com</strong></div><div><span>Recipients</span><strong>' + recipients.length + '</strong></div></div><div class="send-review-subject"><span>Subject preview</span><strong>' + Onyx.esc(mergeFor(subjectInput.value, recipients[0])) + '</strong></div><div class="send-review-recipients">' + recipients.map(function (item) { return '<div><span>' + Onyx.esc(item.name || 'Manual recipient') + '</span><strong>' + Onyx.esc(item.email) + '</strong></div>'; }).join('') + '</div><button class="link preview-first" id="previewFirst" type="button">Preview the first personalized email</button>'; sendDialog.showModal(); document.getElementById('previewFirst').addEventListener('click', function () { sendDialog.close(); openPreview(0); }); }
