@@ -12,7 +12,14 @@
   <a class="backlink" href="/pipeline/">&lsaquo; Back to pipeline</a>
   <div class="page-head">
     <div><h1 id="name">Loading...</h1><p class="hint" id="sub"></p></div>
-    <div class="actions" style="margin:0" id="topActions"></div>
+    <div>
+      <div class="actions" style="margin:0 0 8px" id="leadNav">
+        <button class="btn quiet compact" id="previousLead" type="button" disabled aria-label="Previous lead" title="Previous lead (↑)">↑</button>
+        <span class="hint" id="leadPosition"></span>
+        <button class="btn quiet compact" id="nextLead" type="button" disabled aria-label="Next lead" title="Next lead (↓)">↓</button>
+      </div>
+      <div class="actions" style="margin:0" id="topActions"></div>
+    </div>
   </div>
 
   <div class="lead-record-stack">
@@ -42,7 +49,7 @@
         <p class="hint" id="dmEvidence" style="margin-top:10px"></p>
         <div class="actions">
           <button class="btn primary compact" id="saveDm">Save contact</button>
-          <button class="btn quiet compact" id="research">Research this lead</button>
+          <button class="btn quiet compact" id="research">Find owner + email</button>
           <button class="btn ok compact" id="emailThem" hidden>Email them</button>
         </div>
         <p class="msg" id="dmMsg"></p>
@@ -68,12 +75,6 @@
         <div class="notes" id="notes"></div>
       </section>
     </div>
-
-      <section class="panel" id="peopleResearchPanel">
-        <h2>Owner lookup shortcuts</h2>
-        <p class="hint">Built from the AI owner name + business phone/address. Phone URLs automatically remove a leading +1.</p>
-        <div class="research-links" id="peopleResearchLinks"></div>
-      </section>
 
       <section class="panel" id="researchPanel" hidden>
         <div class="lead-section-heading"><div><p class="eyebrow">Detailed analysis</p><h2>AI research</h2></div></div>
@@ -108,26 +109,50 @@ Onyx.requireAuth(function () {
     try { var x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; }
   }
 
-  function slug(v) {
-    return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  function pipelineNavigation() {
+    try {
+      var nav = JSON.parse(sessionStorage.getItem('onyx_pipeline_nav') || '{}');
+      return nav && Array.isArray(nav.ids) ? nav : { ids: [] };
+    } catch (_) { return { ids: [] }; }
   }
 
-  function phone10(v) {
-    var d = String(v || '').replace(/\D/g, '');
-    if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
-    return d;
+  function updateLeadNavigation() {
+    var nav = pipelineNavigation(), index = nav.ids.indexOf(id);
+    var previous = document.getElementById('previousLead'), next = document.getElementById('nextLead');
+    var size = Number(nav.request && nav.request.size) || nav.ids.length || 1;
+    previous.disabled = index < 0 || (index === 0 && !nav.page);
+    next.disabled = index < 0 || (index === nav.ids.length - 1 && ((Number(nav.page) || 0) + 1) * size >= Number(nav.total || nav.ids.length));
+    document.getElementById('leadPosition').textContent = index >= 0 ? ((Number(nav.page) || 0) * size + index + 1) + ' of ' + (nav.total || nav.ids.length) : '';
   }
 
-  function phoneDash(v) {
-    var d = phone10(v);
-    return d.length === 10 ? d.slice(0,3) + '-' + d.slice(3,6) + '-' + d.slice(6) : d;
+  function goToLead(offset) {
+    var nav = pipelineNavigation(), index = nav.ids.indexOf(id), target = nav.ids[index + offset];
+    if (target) { location.href = '/lead/?id=' + encodeURIComponent(target) + '&from=pipeline'; return; }
+    var page = (Number(nav.page) || 0) + (offset > 0 ? 1 : -1);
+    if (index < 0 || page < 0 || !nav.request) return;
+    var request = Object.assign({}, nav.request, { page: page });
+    Onyx.sheet('listLeads', request).then(function (result) {
+      if (!result.ok || !result.leads || !result.leads.length) return;
+      nav.ids = result.leads.map(function (item) { return item.id; });
+      nav.names = result.leads.map(function (item) { return item.name || ''; });
+      nav.page = result.page || page; nav.total = result.total || nav.total; nav.request = request;
+      try { sessionStorage.setItem('onyx_pipeline_nav', JSON.stringify(nav)); } catch (_) { }
+      var nextId = offset > 0 ? nav.ids[0] : nav.ids[nav.ids.length - 1];
+      location.href = '/lead/?id=' + encodeURIComponent(nextId) + '&from=pipeline';
+    });
   }
 
-  function phoneParen(v) {
-    var d = phone10(v);
-    return d.length === 10 ? '(' + d.slice(0,3) + ')' + d.slice(3,6) + '-' + d.slice(6) : d;
-  }
+  document.getElementById('previousLead').addEventListener('click', function () { goToLead(-1); });
+  document.getElementById('nextLead').addEventListener('click', function () { goToLead(1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    var button = document.getElementById(e.key === 'ArrowUp' ? 'previousLead' : 'nextLead');
+    if (button.disabled) return;
+    e.preventDefault();
+    goToLead(e.key === 'ArrowUp' ? -1 : 1);
+  });
 
   function extLink(label, url) {
     return url ? '<a class="btn quiet compact" target="_blank" rel="noopener noreferrer" href="' + esc(url) + '">' + esc(label) + '</a>' : '';
@@ -226,60 +251,6 @@ Onyx.requireAuth(function () {
       : '';
   }
 
-  function buildPeopleLinks(l) {
-    var name = String(l.dmName || '').trim();
-    var city = String(l.city || '').trim();
-    var state = String(l.state || '').trim();
-    var zip = String(l.zip || '').trim();
-    var street = String(l.street || '').trim();
-    var phone = String(l.directPhone || l.phone || '').trim();
-    var ns = slug(name), cs = slug(city), ss = slug(street), st = state.toLowerCase();
-    var pd = phoneDash(phone), p10 = phone10(phone), pp = phoneParen(phone);
-    var locSlug = [cs, st].filter(Boolean).join('-');
-    var cityState = [city, state].filter(Boolean).join(', ');
-
-    function enc(v) { return encodeURIComponent(String(v || '')); }
-    var groups = [
-      { name: 'FastPeopleSearch', links: [
-        name && city && state ? ['Name + location', 'https://www.fastpeoplesearch.com/name/' + ns + '_' + locSlug] : null,
-        name ? ['Name', 'https://www.fastpeoplesearch.com/name/' + ns] : null,
-        pd ? ['Phone', 'https://www.fastpeoplesearch.com/' + pd] : null,
-        street && city && state ? ['Address', 'https://www.fastpeoplesearch.com/address/' + ss + '_' + locSlug] : null
-      ]},
-      { name: 'TruePeopleSearch', links: [
-        name && cityState ? ['Name + location', 'https://www.truepeoplesearch.com/results?name=' + enc(name) + '&citystatezip=' + enc(cityState)] : null,
-        name ? ['Name', 'https://www.truepeoplesearch.com/results?name=' + enc(name)] : null,
-        pp ? ['Phone', 'https://www.truepeoplesearch.com/resultphone?phoneno=' + enc(pp)] : null,
-        street && cityState ? ['Address', 'https://www.truepeoplesearch.com/resultaddress?streetaddress=' + enc(street) + '&citystatezip=' + enc(cityState)] : null
-      ]},
-      { name: 'FastBackgroundCheck', links: [
-        name && city && state ? ['Name + location', 'https://www.fastbackgroundcheck.com/people/' + ns + '/' + locSlug] : null,
-        name ? ['Name', 'https://www.fastbackgroundcheck.com/people/' + ns] : null,
-        pd ? ['Phone', 'https://www.fastbackgroundcheck.com/phone/' + pd] : null,
-        street && city && state ? ['Address', 'https://www.fastbackgroundcheck.com/address/' + ss + '/' + locSlug] : null
-      ]},
-      { name: 'USPhoneBook', links: [
-        name && city && state ? ['Name + location', 'https://www.usphonebook.com/' + ns + '/' + st + '/' + cs] : null,
-        name ? ['Name', 'https://www.usphonebook.com/' + ns] : null,
-        pd ? ['Phone', 'https://www.usphonebook.com/phone-search/' + pd] : null,
-        street && city && state ? ['Address', 'https://www.usphonebook.com/address/' + ss + '_' + locSlug] : null
-      ]},
-      { name: 'AdvancedBackgroundChecks', links: [
-        name && city && state ? ['Name + location', 'https://www.advancedbackgroundchecks.com/find/name/' + ns + '/in/' + encodeURIComponent(state.toUpperCase()) + '/' + cs] : null,
-        name ? ['Name', 'https://www.advancedbackgroundchecks.com/find/name/' + ns] : null,
-        p10 ? ['Phone', 'https://www.advancedbackgroundchecks.com/find/phone/' + p10] : null,
-        street && city && state ? ['Address', 'https://www.advancedbackgroundchecks.com/find/address/' + ss + '/' + cs + '-' + encodeURIComponent(state.toUpperCase()) + (zip ? '-' + enc(zip) : '')] : null
-      ]}
-    ];
-
-    return groups.map(function (g) {
-      var links = g.links.filter(Boolean);
-      if (!links.length) return '';
-      return '<div class="research-link-row"><b>' + esc(g.name) + '</b><div class="actions">' +
-        links.map(function (x) { return extLink(x[0], x[1]); }).join('') + '</div></div>';
-    }).join('');
-  }
-
   function paintEmailCandidates(l) {
     var list = parseList(l.emailCandidates);
     var el = document.getElementById('emailCandidates');
@@ -358,7 +329,7 @@ Onyx.requireAuth(function () {
     document.getElementById('researchStatus').textContent = l.enrichedAt ? 'AI researched' : 'Not researched';
     document.getElementById('researchStatus').className = 'tag' + (l.enrichedAt ? ' ok' : '');
     document.getElementById('googleRating').textContent = l.rating ? l.rating + ' ★ · ' + (l.reviewCount || 0) + ' reviews' : 'No rating';
-    document.getElementById('peopleResearchLinks').innerHTML = buildPeopleLinks(l) || '<p class="hint">Add an owner name, phone, or address to generate lookup links.</p>';
+    updateLeadNavigation();
 
     var sel = document.getElementById('stage');
     sel.innerHTML = stages.map(function (s) {
@@ -455,18 +426,10 @@ Onyx.requireAuth(function () {
     btn.disabled = true;
 
     var map = [
-      ['decisionMakerName', 'dmName'], ['decisionMakerTitle', 'dmTitle'],
+      ['decisionMakerName', 'dmName'],
       ['decisionMakerConfidence', 'dmConfidence'], ['decisionMakerEvidence', 'dmEvidence'],
       ['email', 'email'], ['emailStatus', 'emailStatus'], ['emailConfidence', 'emailConfidence'],
-      ['directPhone', 'directPhone'], ['linkedin', 'linkedin'], ['instagram', 'instagram'],
-      ['facebook', 'facebook'], ['services', 'services'], ['existingEquipment', 'existingEquipment'],
-      ['expansionSignals', 'expansionSignals'], ['reviewOpportunity', 'reviewOpportunity'], ['reviewFindings', 'reviewFindings'], ['reviewEvidence', 'reviewEvidence'],
-      ['serviceGap', 'serviceGap'], ['serviceGapEvidence', 'serviceGapEvidence'], ['leadScore', 'leadScore'], ['buyerFit', 'buyerFit'],
-      ['scoreReasoning', 'scoreReasoning'], ['salesAngle', 'salesAngle'], ['angleEvidence', 'angleEvidence'],
-      ['bestChannel', 'bestChannel'], ['openingAngle', 'openingAngle'], ['personalization', 'personalization'],
-      ['suggestedMessage', 'suggestedMessage'], ['sources', 'sources'],
-      ['emailCandidates', 'emailCandidates'], ['phoneCandidates', 'phoneCandidates'], ['ownerCandidates', 'ownerCandidates'],
-      ['ownerSources', 'ownerSources'], ['researchAttempts', 'researchAttempts'], ['researchSummary', 'researchSummary'],
+      ['sources', 'sources'],
       ['enrichedAt', 'enrichedAt'], ['needsHumanReview', 'needsHumanReview']
     ];
 
@@ -474,17 +437,10 @@ Onyx.requireAuth(function () {
       var f = {};
       map.forEach(function (p) {
         var v = d && d[p[0]];
-        // Research may intentionally return no usable email after filtering a
-        // template/platform address. Clear an old auto-found value, but never
-        // overwrite an email that a user entered manually.
-        if (v === undefined || v === null || v === '' || v === 'Unknown') {
-          if (p[1] === 'email' && lead.email && !/^Entered by /i.test(String(lead.emailStatus || ''))) f.email = '';
-          return;
-        }
-        if (p[1] === 'email' && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return;
-        if (['emailCandidates','phoneCandidates','ownerCandidates','ownerSources','researchAttempts'].indexOf(p[1]) > -1 && typeof v !== 'string') {
-          v = JSON.stringify(v);
-        }
+        // Empty research results never erase an existing saved value.
+        if (v === undefined || v === null || v === '' || v === 'Unknown') return;
+        if (['email','emailStatus','emailConfidence'].indexOf(p[1]) > -1 && lead.email && /^Entered by /i.test(String(lead.emailStatus || ''))) return;
+        if (p[1] === 'sources') v = mergeTextField(lead.sources, v);
         f[p[1]] = v;
       });
       return f;
@@ -502,20 +458,6 @@ Onyx.requireAuth(function () {
       return parts.join('\n');
     }
 
-    function mergeAttemptLists(a, b) {
-      function arr(v) {
-        if (!v) return [];
-        if (Array.isArray(v)) return v;
-        try { var p = JSON.parse(v); return Array.isArray(p) ? p : [String(v)]; }
-        catch (_) { return [String(v)]; }
-      }
-      var out = [];
-      arr(a).concat(arr(b)).forEach(function (x) {
-        if (x && out.indexOf(x) === -1) out.push(x);
-      });
-      return out;
-    }
-
     function saveData(d, extra) {
       var f = fieldsFrom(d || {});
       if (extra) for (var k in extra) f[k] = extra[k];
@@ -523,75 +465,17 @@ Onyx.requireAuth(function () {
       return Onyx.sheet('updateLead', { id: id, fields: f });
     }
 
-    Onyx.msg('dmMsg', 'Stage 1/3 — SMART owner lookup. One high-yield search first; fallback only if the owner is still weak/missing...');
+    Onyx.msg('dmMsg', 'Finding the owner name and best published email…');
 
-    Onyx.worker('enrichOwner', { lead: lead }).then(function (ownerRes) {
-      if (!ownerRes.ok) throw new Error(ownerRes.error || 'Owner research failed.');
-      var owner = ownerRes.data || {};
-      owner.enrichedAt = new Date().toISOString();
-
-      return saveData(owner, (!lead.stage || lead.stage === 'New Lead') ? { stage: 'Researching' } : null)
+    Onyx.worker('enrichContact', { lead: lead }).then(function (result) {
+      if (!result.ok) throw new Error(result.error || 'Owner and email research failed.');
+      return saveData(result.data || {}, (!lead.stage || lead.stage === 'New Lead') ? { stage: 'Researching' } : null)
         .then(function (saved) {
-          if (!saved.ok) throw new Error(saved.error || 'Could not save owner research.');
-          load(); // owner appears immediately instead of waiting for every later API call
-
-          var ownerName = owner.decisionMakerName && owner.decisionMakerName !== 'Unknown'
-            ? owner.decisionMakerName : 'Owner unresolved';
-          var om = owner._researchMeta || {};
-          Onyx.msg('dmMsg', 'Owner: ' + ownerName + ' (' + (owner.decisionMakerConfidence || 'LOW') + ') — ' + (om.ownerWebPasses || 0) + ' web pass(es). Contact + sales stages now run in parallel. Contact research also reverse-searches the known business number for alternate published phones...');
-
-          return Promise.all([
-            Onyx.worker('enrichEmails', { lead: lead, owner: owner }),
-            Onyx.worker('enrichBusiness', { lead: lead, owner: owner })
-          ]).then(function (parts) {
-            return { owner: owner, emailRes: parts[0], bizRes: parts[1] };
-          });
-        });
-    }).then(function (result) {
-      var emailRes = result.emailRes || {};
-      var bizRes = result.bizRes || {};
-      var combined = {};
-      var errors = [];
-
-      if (emailRes.ok && emailRes.data) Object.assign(combined, emailRes.data);
-      else errors.push('email: ' + (emailRes.error || 'failed'));
-
-      if (bizRes.ok && bizRes.data) {
-        var ownerSummary = result.owner.researchSummary || '';
-        var emailSummary = combined.researchSummary || '';
-        var emailAttempts = combined.researchAttempts || [];
-        var emailSources = combined.sources || '';
-        Object.assign(combined, bizRes.data);
-        combined.researchSummary = [ownerSummary, emailSummary, bizRes.data.researchSummary].filter(Boolean).join(' · ');
-        combined.researchAttempts = mergeAttemptLists(result.owner.researchAttempts, mergeAttemptLists(emailAttempts, bizRes.data.researchAttempts));
-        combined.sources = mergeTextField(result.owner.sources, mergeTextField(emailSources, bizRes.data.sources));
-      } else {
-        errors.push('sales: ' + (bizRes.error || 'failed'));
-      }
-
-      combined.enrichedAt = new Date().toISOString();
-      combined.needsHumanReview = !!(
-        (emailRes.ok && emailRes.data && emailRes.data.needsHumanReview) ||
-        result.owner.needsHumanReview || errors.length
-      );
-
-      return saveData(combined).then(function (saved) {
-        if (!saved.ok) throw new Error(saved.error || 'Could not save final research.');
+        if (!saved.ok) throw new Error(saved.error || 'Could not save owner and email.');
         btn.disabled = false;
         load();
-        var count = emailRes.ok && emailRes.data && Array.isArray(emailRes.data.emailCandidates)
-          ? emailRes.data.emailCandidates.length : 0;
-        var phoneCount = emailRes.ok && emailRes.data && Array.isArray(emailRes.data.phoneCandidates)
-          ? emailRes.data.phoneCandidates.length : 0;
-        var om = result.owner._researchMeta || {};
-        var em = emailRes.ok && emailRes.data ? (emailRes.data._researchMeta || {}) : {};
-        var bm = bizRes.ok && bizRes.data ? (bizRes.data._researchMeta || {}) : {};
-        var webPasses = (om.ownerWebPasses || 0) + (em.emailWebPasses || 0) + (bm.businessWebPasses || 0);
-        if (errors.length) {
-          Onyx.msg('dmMsg', 'Research partially saved — ' + errors.join(' · ') + ' · ' + webPasses + ' total web pass(es).', 'bad');
-        } else {
-          Onyx.msg('dmMsg', 'Research complete — ' + count + ' email candidate(s) · ' + phoneCount + ' phone candidate(s) · ' + webPasses + ' total web pass(es).', 'good');
-        }
+        var data = result.data || {};
+        Onyx.msg('dmMsg', 'Saved — owner: ' + (data.decisionMakerName || 'not found') + ' · email: ' + (data.email || 'not found') + '.', 'good');
       });
     }).catch(function (e) {
       btn.disabled = false;
