@@ -437,3 +437,4 @@ body.research-queue-on{padding-bottom:64px}
 .research-queue .rq-errors a{color:#fff}
 body.research-queue-on .pipe-select-bar,body.research-queue-on .seq-bulk{bottom:72px}
 @media(max-width:720px){.research-queue{grid-template-columns:1fr;gap:8px;padding:10px 14px}body.research-queue-on{padding-bottom:120px}body.research-queue-on .pipe-select-bar,body.research-queue-on .seq-bulk{bottom:128px}}
+.campaign-status.unsubscribed{background:#fdf0f2;color:#a11f37;border-color:#f0c7ce}

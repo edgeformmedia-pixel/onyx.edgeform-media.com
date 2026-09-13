@@ -111,11 +111,22 @@ async function sendThroughResend(env, message, user, trackingToken, extra) {
     subject,
     reply_to: REPLY_TO
   };
-  if (html) {
-    const pixel = `<img src="${TRACKING_ORIGIN}/track/${trackingToken}.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;overflow:hidden">`;
-    payload.html = html.includes('</body>') ? html.replace('</body>', pixel + '</body>') : html + pixel;
+  // One-off emails carry a placeholder so each recipient gets their own unsubscribe link.
+  if (html.includes('%%UNSUBSCRIBE_URL%%')) {
+    const unsubUrl = `${TRACKING_ORIGIN}/u/${trackingToken}`;
+    payload.html = html.replaceAll('%%UNSUBSCRIBE_URL%%', unsubUrl);
+    extra = Object.assign({}, extra, { headers: Object.assign({ 'List-Unsubscribe': `<${unsubUrl}>, <mailto:${REPLY_TO}?subject=unsubscribe>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }, extra && extra.headers) });
+    if (plain) payload.text = `${plain}
+
+--
+Unsubscribe: ${unsubUrl}`;
   }
-  if (plain) payload.text = plain;
+  if (html) {
+    const source = payload.html || html;
+    const pixel = `<img src="${TRACKING_ORIGIN}/track/${trackingToken}.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;overflow:hidden">`;
+    payload.html = source.includes('</body>') ? source.replace('</body>', pixel + '</body>') : source + pixel;
+  }
+  if (plain && !payload.text) payload.text = plain;
   if (extra && extra.headers) payload.headers = extra.headers;
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -181,7 +192,7 @@ async function listSends(env) {
   const dayStart = now().slice(0, 10) + 'T00:00:00.000Z';
   const [rowsResult, stats] = await Promise.all([
     env.DB.prepare("SELECT s.id,s.at,s.user,s.lead_id leadId,coalesce(l.name,'') leadName,s.recipient,s.from_local fromLocal,s.subject,s.resend_id resendId,s.status,s.opened_at openedAt,coalesce(s.open_count,0) openCount,coalesce(s.campaign_id,'') campaignId,coalesce(s.campaign_name,'') campaignName,coalesce(s.body_text,'') bodyText,s.step_no stepNo FROM sends s LEFT JOIN leads l ON l.id=s.lead_id ORDER BY s.at DESC LIMIT 250").all(),
-    env.DB.prepare("SELECT count(*) total,sum(CASE WHEN at>=? AND status<>'failed' THEN 1 ELSE 0 END) sentToday,sum(CASE WHEN coalesce(open_count,0)>0 THEN 1 ELSE 0 END) opened,sum(CASE WHEN status='replied' THEN 1 ELSE 0 END) replied,sum(CASE WHEN status='waiting' THEN 1 ELSE 0 END) waiting,sum(CASE WHEN status IN ('failed','bounced') THEN 1 ELSE 0 END) failed FROM sends").bind(dayStart).first()
+    env.DB.prepare("SELECT count(*) total,sum(CASE WHEN at>=? AND status<>'failed' THEN 1 ELSE 0 END) sentToday,sum(CASE WHEN coalesce(open_count,0)>0 THEN 1 ELSE 0 END) opened,sum(CASE WHEN status='replied' THEN 1 ELSE 0 END) replied,sum(CASE WHEN status='waiting' THEN 1 ELSE 0 END) waiting,sum(CASE WHEN status IN ('failed','bounced') THEN 1 ELSE 0 END) failed,sum(CASE WHEN status='unsubscribed' THEN 1 ELSE 0 END) unsubscribed FROM sends").bind(dayStart).first()
   ]);
   return { ok: true, sends: rowsResult.results, stats: stats || {} };
 }
@@ -346,9 +357,6 @@ function onyxEmailHtml(bodyText, opts) {
     }
     return '<p style="margin:0 0 18px;font:15px/1.7 ' + font + ';color:#2b2b2b">' + escHtml(part).replace(/\n/g, '<br>') + '</p>';
   }).join('');
-  var footerLines = [];
-  if (opts.postal) footerLines.push(escHtml(opts.postal));
-  if (opts.optOutHtml) footerLines.push(opts.optOutHtml);
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>' +
     '<body style="margin:0;padding:0;background:#f3f2ef">' +
     '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f2ef;border-collapse:collapse"><tr><td align="center" style="padding:28px 12px">' +
@@ -357,19 +365,23 @@ function onyxEmailHtml(bodyText, opts) {
     '<tr><td style="padding:36px 40px 18px">' + blocks + '</td></tr>' +
     '<tr><td style="padding:0 40px"><div style="height:1px;line-height:1px;font-size:0;background:#ece9e3">&nbsp;</div></td></tr>' +
     '<tr><td align="center" style="padding:26px 40px 30px">' +
-    '<a href="https://www.instagram.com/onyxmedicalgroups/" style="text-decoration:none"><img src="https://onyx.edgeform-media.com/assets/onyx-medical-groups-logo.jpg" width="92" height="92" alt="Onyx Medical Groups" style="display:block;width:92px;height:92px;border:0;margin:0 auto"></a>' +
+    '<img src="https://onyx.edgeform-media.com/assets/onyx-medical-groups-logo.jpg" width="92" height="92" alt="Onyx Medical Groups" style="display:block;width:92px;height:92px;border:0;margin:0 auto">' +
     '<p style="margin:10px 0 0;font:12px/1.6 ' + font + ';color:#6b6b6b">Equipment, training &amp; launch support for medical aesthetics practices</p>' +
-    '<p style="margin:6px 0 0;font:12px/1.6 ' + font + '"><a href="https://www.instagram.com/onyxmedicalgroups/" style="color:#b08d57;text-decoration:none;font-weight:600">@onyxmedicalgroups</a></p>' +
-    (footerLines.length ? '<p style="margin:14px 0 0;font:11px/1.6 ' + font + ';color:#9a9a9a">' + footerLines.join('<br>') + '</p>' : '') +
+    '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:14px auto 0;border-collapse:collapse"><tr>' +
+    '<td style="padding:0 8px 0 0"><a href="https://www.instagram.com/onyxmedicalgroups/" title="Onyx Medical Groups on Instagram" style="text-decoration:none"><img src="https://onyx.edgeform-media.com/assets/instagram-black.png" width="26" height="26" alt="Instagram" style="display:block;width:26px;height:26px;border:0"></a></td>' +
+    '<td><a href="https://www.instagram.com/onyxmedicalgroups/" style="font:600 12px/1.4 ' + font + ';color:#111111;text-decoration:none">@onyxmedicalgroups</a></td>' +
+    '</tr></table>' +
+    (opts.postal ? '<p style="margin:16px 0 0;font:11px/1.6 ' + font + ';color:#9a9a9a">' + escHtml(opts.postal) + '</p>' : '') +
+    (opts.unsubscribeUrl ?
+      '<p style="margin:12px 0 8px;font:11px/1.6 ' + font + ';color:#9a9a9a">Not the right fit? We won’t email you again.</p>' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;border-collapse:separate"><tr><td style="border:1px solid #cfcac1;border-radius:999px">' +
+      '<a href="' + escHtml(opts.unsubscribeUrl) + '" style="display:inline-block;padding:7px 18px;font:600 11px/1.2 ' + font + ';letter-spacing:.06em;text-transform:uppercase;color:#6b6b6b;text-decoration:none">Unsubscribe</a></td></tr></table>' : '') +
     '</td></tr></table>' +
     '</td></tr></table></body></html>';
 }
 
 function sequenceEmailHtml(body, unsubUrl, postal) {
-  return onyxEmailHtml(body, {
-    postal,
-    optOutHtml: `Not the right fit? <a href="${unsubUrl}" style="color:#9a9a9a;text-decoration:underline">Unsubscribe</a> and we won’t email you again.`
-  });
+  return onyxEmailHtml(body, { postal, unsubscribeUrl: unsubUrl });
 }
 
 function sequenceEmailText(body, unsubUrl, postal) {
@@ -750,7 +762,8 @@ async function suppressEmail(env, email, reason, user) {
   const statements = [
     env.DB.prepare('INSERT INTO suppressions(email,reason,lead_id,at) VALUES(?,?,?,?) ON CONFLICT(email) DO UPDATE SET reason=excluded.reason,at=excluded.at')
       .bind(email, reason, leads[0] ? leads[0].id : null, at),
-    env.DB.prepare("UPDATE campaign_members SET status=?,status_at=?,next_due_at=NULL,sending_at=NULL WHERE email=? AND status IN ('active','paused')").bind(reason, at, email)
+    env.DB.prepare("UPDATE campaign_members SET status=?,status_at=?,next_due_at=NULL,sending_at=NULL WHERE email=? AND status IN ('active','paused')").bind(reason, at, email),
+    env.DB.prepare("UPDATE sends SET status=? WHERE lower(recipient)=? AND status IN ('waiting','sent','replied')").bind(reason, email)
   ];
   for (const lead of leads) {
     if (reason === 'unsubscribed') statements.push(env.DB.prepare("UPDATE leads SET stage='Do Not Contact',updated_at=? WHERE id=?").bind(at, lead.id));
@@ -803,8 +816,16 @@ function unsubscribePage(title, message, form) {
 
 async function unsubscribe(env, token) {
   const member = await env.DB.prepare('SELECT id FROM campaign_members WHERE unsub_token=?').bind(token).first();
-  if (member) await applyMemberStatus(env, [member.id], 'unsubscribed', null);
-  return !!member;
+  if (member) {
+    await applyMemberStatus(env, [member.id], 'unsubscribed', null);
+    await env.DB.prepare("UPDATE sends SET status='unsubscribed' WHERE member_id=? AND status IN ('waiting','sent','replied')").bind(member.id).run();
+    return true;
+  }
+  const send = await env.DB.prepare('SELECT id,recipient FROM sends WHERE tracking_token=?').bind(token).first();
+  if (!send || !validEmail(send.recipient)) return false;
+  await suppressEmail(env, primaryEmail(send.recipient), 'unsubscribed', null);
+  await env.DB.prepare("UPDATE sends SET status='unsubscribed' WHERE lower(recipient)=?").bind(primaryEmail(send.recipient)).run();
+  return true;
 }
 
 export default {
