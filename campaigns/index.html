@@ -130,6 +130,14 @@ Onyx.requireAuth(function (user) {
   var ctx = null, dueRows = [], dueSelected = {}, detail = null, detailTab = 'all', detailSelected = {};
   var campaignId = Onyx.qs('id');
 
+  // Make the whole checkbox cell clickable, not just the box.
+  document.addEventListener('click', function (e) {
+    var cell = e.target.closest('.sel-col');
+    if (!cell || e.target.closest('input')) return;
+    var box = cell.querySelector('input[type=checkbox]');
+    if (box && !box.disabled) box.click();
+  });
+
   document.querySelectorAll('dialog').forEach(function (d) {
     d.addEventListener('click', function (e) { if (e.target.closest('[data-close]')) d.close(); });
   });

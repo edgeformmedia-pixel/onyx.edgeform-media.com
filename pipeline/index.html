@@ -234,7 +234,9 @@ Onyx.requireAuth(function () {
     var ids = Object.keys(selectedLeads).filter(function (id) { return selectedLeads[id]; });
     document.getElementById('selectBar').hidden = !ids.length;
     document.getElementById('selectCount').textContent = ids.length + ' lead' + (ids.length === 1 ? '' : 's') + ' selected';
-    document.getElementById('selectPage').checked = pageLeadIds.length > 0 && pageLeadIds.every(function (id) { return selectedLeads[id]; });
+    var onPage = pageLeadIds.filter(function (id) { return selectedLeads[id]; }).length;
+    document.getElementById('selectPage').checked = pageLeadIds.length > 0 && onPage === pageLeadIds.length;
+    document.getElementById('selectPage').indeterminate = onPage > 0 && onPage < pageLeadIds.length;
   }
   document.getElementById('selectMatching').addEventListener('click', function () {
     var button = this;
@@ -262,6 +264,9 @@ Onyx.requireAuth(function () {
     }
     var box = e.target.closest('[data-select-lead]'); if (!box) return;
     selectedLeads[box.dataset.selectLead] = box.checked; updateSelection();
+  });
+  document.querySelector('thead .sel-col').addEventListener('click', function (e) {
+    if (!e.target.closest('input')) document.getElementById('selectPage').click();
   });
   document.getElementById('selectPage').addEventListener('change', function () {
     var on = this.checked;
@@ -305,6 +310,15 @@ Onyx.requireAuth(function () {
 
   document.getElementById('rows').addEventListener('click', function (e) {
     var check = e.target.closest('[data-select-lead]');
+    var cell = !check && e.target.closest('td.sel-col');
+    if (cell) {
+      // The whole checkbox cell is clickable, not just the box itself.
+      check = cell.querySelector('[data-select-lead]');
+      if (!check) return;
+      check.checked = !check.checked;
+      selectedLeads[check.dataset.selectLead] = check.checked;
+      updateSelection();
+    }
     if (check) {
       // Shift-click selects (or clears) every row between the last click and this one.
       var index = pageLeadIds.indexOf(check.dataset.selectLead);

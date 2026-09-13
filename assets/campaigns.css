@@ -162,3 +162,25 @@
 .laser-pick.marked{color:var(--text);font-weight:600;border-color:#9fb3c8}
 .pipe-select-bar .select-progress{font-size:12px;color:#c7d0da}
 .grid .sel-col{user-select:none}
+
+/* custom row checkboxes: bigger, easier to hit */
+.grid .sel-col{width:44px;padding-left:6px!important;padding-right:6px!important;cursor:pointer}
+.grid .sel-col input[type=checkbox],.seq-review-list input[type=checkbox]{
+  -webkit-appearance:none;appearance:none;width:22px;height:22px;margin:0;padding:0;
+  display:inline-grid;place-content:center;vertical-align:middle;cursor:pointer;
+  border:2px solid #9aa8b6;border-radius:6px;background:#fff;
+  transition:background-color .12s,border-color .12s,box-shadow .12s}
+.grid .sel-col input[type=checkbox]::before,.seq-review-list input[type=checkbox]::before{
+  content:"";width:12px;height:12px;transform:scale(0);transition:transform .12s;
+  background:#fff;clip-path:polygon(14% 44%,0 60%,40% 100%,100% 22%,85% 8%,39% 70%)}
+.grid .sel-col input[type=checkbox]:checked,.seq-review-list input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+.grid .sel-col input[type=checkbox]:checked::before,.seq-review-list input[type=checkbox]:checked::before{transform:scale(1)}
+.grid .sel-col input[type=checkbox]:indeterminate{background:var(--accent);border-color:var(--accent)}
+.grid .sel-col input[type=checkbox]:indeterminate::before{transform:scale(1);clip-path:none;height:3px;border-radius:2px}
+.grid .sel-col:hover input[type=checkbox]:not(:checked){border-color:var(--accent);box-shadow:0 0 0 4px rgba(15,108,189,.12)}
+.grid .sel-col input[type=checkbox]:focus-visible,.seq-review-list input[type=checkbox]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seq-review-list input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}
+.seq-review-list label{grid-template-columns:24px 1fr}
+.pipe-select-bar .btn.quiet,.seq-bulk .btn.quiet{background:transparent;border-color:#56677a;color:#fff}
+.pipe-select-bar .btn.quiet:hover,.seq-bulk .btn.quiet:hover{background:rgba(255,255,255,.08);border-color:#8a9aab;color:#fff}
+.pipe-select-bar .btn.quiet:disabled,.seq-bulk .btn.quiet:disabled{opacity:.5}
