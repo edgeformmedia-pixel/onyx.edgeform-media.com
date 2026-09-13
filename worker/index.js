@@ -23,7 +23,7 @@ const DAILY_CAP = 400;
 // Sales-fit crawling runs inside a Worker request. Keep the synchronous HTML
 // parsing budget deliberately small so a large marketing site cannot exhaust
 // the Worker CPU allowance before the model call starts.
-const MAX_SITE_PAGES = 5;
+const MAX_SITE_PAGES = 6;
 const MAX_HTML_CHARS_PER_PAGE = 180000;
 const MAX_CRAWL_TEXT_CHARS_PER_PAGE = 3500;
 const SITE_FETCH_TIMEOUT_MS = 5500;
@@ -178,8 +178,24 @@ function titleFromHtml(html) {
   return m ? pageText(m[1]).slice(0, 160) : '';
 }
 
+function decodeCfEmail(hex) {
+  try {
+    const key = parseInt(hex.slice(0, 2), 16);
+    let out = '';
+    for (let i = 2; i < hex.length; i += 2) out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ key);
+    return out;
+  } catch (_) { return ''; }
+}
+
 function extractEmails(html) {
-  let t = decodeBasicEntities(String(html || ''))
+  const source = String(html || '');
+  const extra = [];
+  // Cloudflare email obfuscation: data-cfemail="..." and /cdn-cgi/l/email-protection#...
+  source.replace(/data-cfemail=["']([0-9a-f]+)["']/gi, (m, hex) => { extra.push(decodeCfEmail(hex)); return m; });
+  source.replace(/email-protection#([0-9a-f]+)/gi, (m, hex) => { extra.push(decodeCfEmail(hex)); return m; });
+  // mailto: links, including percent-encoded ones
+  source.replace(/mailto:([^"'?\s>]+)/gi, (m, addr) => { try { extra.push(decodeURIComponent(addr)); } catch (e) { extra.push(addr); } return m; });
+  let t = (decodeBasicEntities(source) + ' ' + extra.join(' '))
     .replace(/\s*(?:\[at\]|\(at\)|\sat\s)\s*/gi, '@')
     .replace(/\s*(?:\[dot\]|\(dot\)|\sdot\s)\s*/gi, '.');
   const found = t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,24}/gi) || [];
@@ -229,6 +245,16 @@ function extractPhones(html) {
   return out.slice(0, 20);
 }
 
+function pageKey(href) {
+  try { const u = new URL(href); return (u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/+$/, '')).toLowerCase(); } catch (_) { return String(href); }
+}
+
+function linkPriority(key) {
+  if (/contact|reach|location|visit|book|appointment/.test(key)) return 0;
+  if (/owner|founder|meet|about|our-story|story|team|staff|provider|doctor|leadership|people|company/.test(key)) return 1;
+  return 2;
+}
+
 function internalResearchLinks(html, baseUrl) {
   let base;
   try { base = new URL(baseUrl); } catch (_) { return []; }
@@ -244,23 +270,33 @@ function internalResearchLinks(html, baseUrl) {
       if (u.hostname !== base.hostname) continue;
       u.hash = '';
       const key = (u.pathname + ' ' + label).toLowerCase();
-      if (!/(about|team|staff|people|provider|doctor|leadership|founder|owner|contact|privacy|terms|career|meet|company)/.test(key)) continue;
-      out.push(u.href);
+      if (!/(about|team|staff|people|provider|doctor|leadership|founder|owner|contact|reach|location|meet|story|company)/.test(key)) continue;
+      if (/\.(pdf|jpe?g|png|gif|webp|svg|mp4|zip)$/i.test(u.pathname)) continue;
+      out.push({ href: u.href, priority: linkPriority(key) });
     } catch (_) { }
   }
-  return uniq(out);
+  const seen = new Set([pageKey(base.href)]);
+  return out.sort((a, b) => a.priority - b.priority).map(x => x.href).filter(h => { const k = pageKey(h); return !seen.has(k) && seen.add(k); });
 }
+
+const COMMON_CONTACT_PATHS = ['/contact', '/contact-us', '/about', '/about-us', '/pages/contact'];
 
 async function crawlCompanySite(website) {
   const root = safeWebsite(website);
-  if (!root) return { root: '', pages: [], emails: [], emailSources: {}, phones: [], phoneSources: {} };
+  const social = root && /(^|\.)(facebook|instagram|linktr|tiktok|yelp|google|x|twitter|youtube)\.[a-z]+$/i.test(root.hostname);
+  if (!root || social) return { root: '', pages: [], emails: [], emailSources: {}, phones: [], phoneSources: {} };
 
   const first = await fetchHtml(root.href);
   if (!first) return { root: root.href, pages: [], emails: [], emailSources: {}, phones: [], phoneSources: {} };
 
-  const urls = [first.url].concat(internalResearchLinks(first.html, first.url)).slice(0, MAX_SITE_PAGES);
+  const discovered = internalResearchLinks(first.html, first.url);
+  // Sites without a linked contact page often still serve one at a common path.
+  const probes = discovered.some(h => /contact/i.test(h)) ? [] : COMMON_CONTACT_PATHS.map(p => new URL(p, first.url).href);
+  const urls = uniq([first.url].concat(discovered, probes)).slice(0, MAX_SITE_PAGES);
   const rest = await Promise.all(urls.slice(1).map(fetchHtml));
-  const rawPages = [first].concat(rest.filter(Boolean));
+  const fetchedKeys = new Set([pageKey(first.url)]);
+  // Probes and redirects can land on a page we already have (e.g. /about -> /about/).
+  const rawPages = [first].concat(rest.filter(p => p && !fetchedKeys.has(pageKey(p.url)) && fetchedKeys.add(pageKey(p.url))));
   const emailSources = {};
   const phoneSources = {};
   const pages = [];
@@ -1003,47 +1039,85 @@ function compactCrawl(crawl) {
 
 /* ── Staged endpoints ────────────────────────────────────────── */
 
-const CONTACT_SYSTEM = `You research local businesses for a CRM. Return only the best-supported human owner name and the best published email address.
+const CONTACT_SYSTEM = `You research local businesses for a CRM. Return ONLY two things: the business OWNER's name and the BEST email to reach the business.
 
 OWNER:
+- The owner is the person who owns the business (owner, founder, co-owner, managing member, or president/CEO of a small business). Not a receptionist, not a staff injector, and not a medical director unless they are also the owner.
 - Identify the exact business by name, address, phone, and domain.
-- Prefer official state entity filings and current officer/member/manager records, then BBB, professional licensing/NPI records, and credible business directories.
+- Good evidence: the company website's About / Meet the Owner / Founder page naming the owner; the state corporation/LLC registry (officers, managing members, annual reports); a BBB principal; press or interviews calling the person the owner/founder; the owner's LinkedIn listing this business.
 - A registered agent alone is not proof of ownership. Never guess a person.
-- VERIFIED means an official record tied to the exact entity/location. HIGH means strong corroborated evidence. Return "Unknown" when unresolved.
+- VERIFIED: an official registry record for the exact entity, or the business website explicitly naming them as owner/founder. HIGH: two independent sources agree. MEDIUM: one credible source. Return "Unknown" when unresolved.
 
 EMAIL:
-- Prefer a published professional email tied to the owner. Otherwise return the best published business inbox from the supplied company-site crawl or credible external source.
-- Never return a guessed email. Never use people-search/background-check sites or private household contact data.
-- Ignore template/platform addresses unrelated to the business. Return an empty string when no legitimate published email is found.
+- Emails found on the company website are real and published — they are the strongest source. Pick the best one: the owner's own address on the company domain first, then a general business inbox on the company domain (info@, hello@, contact@, office@), then any other address the website publishes for the business.
+- Only return an email that is not on the website if a credible public source clearly publishes it for this business or its owner.
+- Never return a guessed or pattern-built email. Never use people-search/background-check sites or personal household data.
+- Ignore template, platform, booking-software, and web-developer addresses. Return an empty string when no legitimate published email exists.
 
-Keep evidence and sources short. Spend the single web search on resolving these two fields only.`;
+Use the single web search to resolve the owner (and the email only when the website has none). Keep evidence and sources short.`;
+
+function bestSiteEmail(candidates, lead, ownerName) {
+  const dom = companyDomain(lead);
+  const tokens = String(ownerName || '').toLowerCase().split(/[^a-z]+/).filter(t => t.length > 2 && t !== 'unknown');
+  const score = c => {
+    const [local, eDom] = c.email.split('@');
+    let n = 0;
+    if (dom && (eDom === dom || eDom.endsWith('.' + dom))) n += 50;
+    if (tokens.some(t => local.includes(t))) n += 40;
+    const city = String(lead.city || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (city && local.replace(/[^a-z]/g, '').includes(city)) n += 25;
+    if (/^(info|hello|contact|office|inquiries|inquiry|appointments?|booking|frontdesk|reception|admin|team|spa|clinic)$/.test(local)) n += 20;
+    if (/^(privacy|legal|careers?|jobs?|hr|billing|accounts?|noreply|no-reply|webmaster|press|media|marketing|support)$/.test(local)) n -= 30;
+    if (/^(gmail|yahoo|outlook|hotmail|icloud|aol)\./.test(eDom)) n += dom ? 5 : 15;
+    return n;
+  };
+  return (candidates || []).slice().sort((a, b) => score(b) - score(a))[0] || null;
+}
 
 async function enrichContactStage(body, env) {
   const lead = body.lead || {};
   if (!lead.name) return { ok: false, error: 'Lead needs at least a business name.' };
   const started = Date.now();
   const crawl = await crawlCompanySite(lead.website);
-  const siteEmails = mergeEmailCandidates(siteCandidates(crawl, lead, {})).slice(0, 10);
-  const prompt = `Find the owner name and best published email for this exact business.\n\n${leadFacts(lead)}\n\nPUBLISHED EMAILS FOUND DIRECTLY ON THE COMPANY WEBSITE:\n${JSON.stringify(siteEmails)}\n\nCOMPANY WEBSITE EXCERPTS (email context only; do not treat the site as ownership proof):\n${crawlContext(crawl).slice(0, 7000)}`;
+  const siteEmails = mergeEmailCandidates(siteCandidates(crawl, lead, {})).slice(0, 12);
+  const sitePick = bestSiteEmail(siteEmails, lead, '');
+  const prompt = `Find the OWNER name and the BEST email for this exact business.\n\n${leadFacts(lead)}\n\n` +
+    `EMAILS PUBLISHED ON THE COMPANY WEBSITE (${siteEmails.length}):\n${siteEmails.length ? siteEmails.map(c => `- ${c.email} (found on ${c.sourceUrl})`).join('\n') : 'none found'}\n` +
+    (sitePick ? `Current best website email: ${sitePick.email}\n` : '') +
+    `\nCOMPANY WEBSITE PAGES (look for owner / founder names on About or Team pages):\n${crawlContext(crawl).slice(0, 8000)}`;
   const result = await openaiStructuredSearch(env, body, CONTACT_SYSTEM, prompt, contactSchema, 'onyx_owner_email', {
     searchContextSize: 'low', maxOutputTokens: 1100, effort: 'low'
   });
-  const ownerUnknown = !result.decisionMakerName || result.decisionMakerName === 'Unknown';
-  const email = usablePublicContactEmail(result.email) ? String(result.email).trim().toLowerCase() : '';
+  const ownerUnknown = !result.decisionMakerName || /^unknown$/i.test(String(result.decisionMakerName).trim());
+  const ownerName = ownerUnknown ? '' : String(result.decisionMakerName).trim();
+
+  // Website emails are ground truth. Accept a different AI email only when it is
+  // usable and either the site had nothing or the address belongs to the owner.
+  const aiEmail = usablePublicContactEmail(result.email) ? String(result.email).trim().toLowerCase() : '';
+  const onSite = aiEmail && siteEmails.some(c => c.email === aiEmail);
+  const siteBest = bestSiteEmail(siteEmails, lead, ownerName);
+  const nameTokens = ownerName.toLowerCase().split(/[^a-z]+/).filter(t => t.length > 2);
+  const aiIsOwners = aiEmail && nameTokens.some(t => aiEmail.split('@')[0].includes(t));
+  let email = '', emailSource = '';
+  if (onSite) { email = aiEmail; emailSource = 'website'; }
+  else if (aiEmail && (!siteBest || aiIsOwners)) { email = aiEmail; emailSource = 'web'; }
+  else if (siteBest) { email = siteBest.email; emailSource = 'website'; }
+  const siteUrl = emailSource === 'website' ? (siteEmails.find(c => c.email === email) || {}).sourceUrl : '';
+
   return {
     ok: true,
     stage: 'contact',
     data: {
-      decisionMakerName: ownerUnknown ? 'Unknown' : result.decisionMakerName,
-      decisionMakerConfidence: result.decisionMakerConfidence || 'LOW',
+      decisionMakerName: ownerUnknown ? 'Unknown' : ownerName,
+      decisionMakerConfidence: ownerUnknown ? 'LOW' : (result.decisionMakerConfidence || 'LOW'),
       decisionMakerEvidence: result.decisionMakerEvidence || 'No defensible ownership evidence found.',
       email,
-      emailConfidence: email ? (result.emailConfidence || 'LOW') : 'LOW',
-      emailStatus: email ? (result.emailStatus || 'Published business contact') : 'No published email found',
-      sources: uniq(result.sources || []).slice(0, 10).join('\n'),
+      emailConfidence: !email ? 'LOW' : emailSource === 'website' ? 'VERIFIED' : (result.emailConfidence || 'MEDIUM'),
+      emailStatus: !email ? 'No published email found' : emailSource === 'website' ? 'Published on company website' : (result.emailStatus || 'Published business contact'),
+      sources: uniq([...(result.sources || []), siteUrl]).slice(0, 10).join('\n'),
       enrichedAt: new Date().toISOString(),
       needsHumanReview: ownerUnknown || !email,
-      _researchMeta: { mode: 'owner-email-only', webPasses: 1, ms: Date.now() - started }
+      _researchMeta: { mode: 'owner-email-only', sitePages: crawl.pages.length, siteEmails: siteEmails.length, webPasses: 1, ms: Date.now() - started }
     }
   };
 }

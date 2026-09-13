@@ -61,7 +61,10 @@
 
   <div class="pipe-select-bar" id="selectBar" hidden>
     <strong id="selectCount"></strong>
+    <span class="select-progress" id="selectProgress"></span>
     <button class="btn quiet compact" type="button" id="selectClear">Clear</button>
+    <button class="btn quiet compact" type="button" id="selectStop" hidden>Stop after current</button>
+    <button class="btn quiet compact" type="button" id="selectResearch" title="Find owner + best email for every selected lead, even ones already researched">Research selected</button>
     <button class="btn primary compact" type="button" id="selectEnroll">Add to campaign</button>
   </div>
 
@@ -213,6 +216,7 @@ Onyx.requireAuth(function () {
       }).join('');
     }
     pageLeadIds = (r.leads || []).map(function (l) { return String(l.id); });
+    lastSelectIndex = -1;
     matchingTotal = r.total || 0;
     document.getElementById('selectMatchingRow').hidden = !matchingTotal;
     document.getElementById('selectMatching').textContent = 'Select all ' + Math.min(matchingTotal, 1000).toLocaleString() + (matchingTotal > 1000 ? ' (first 1,000)' : '') + ' matching';
@@ -275,7 +279,45 @@ Onyx.requireAuth(function () {
     OnyxCampaigns.enroll(ids, { onDone: function () { selectedLeads = {}; load(); } });
   });
 
+  var lastSelectIndex = -1, selectRunning = false, selectStop = false;
+  document.getElementById('selectResearch').addEventListener('click', function () {
+    if (selectRunning) return;
+    var ids = Object.keys(selectedLeads).filter(function (id) { return selectedLeads[id]; });
+    if (!ids.length) return;
+    if (ids.length > 25 && !confirm('Research ' + ids.length + ' leads? Each one runs an AI web search, one at a time.')) return;
+    selectRunning = true; selectStop = false;
+    var button = this, stop = document.getElementById('selectStop'), done = 0, failed = 0;
+    button.disabled = true; stop.hidden = false; stop.disabled = false;
+    function progress(text) { document.getElementById('selectProgress').textContent = text; }
+    function next(i) {
+      if (selectStop || i >= ids.length) {
+        progress((selectStop ? 'Stopped: ' : 'Done: ') + done + ' researched' + (failed ? ', ' + failed + ' failed' : ''));
+        selectRunning = false; button.disabled = false; stop.hidden = true;
+        load();
+        return;
+      }
+      progress('Researching ' + (i + 1) + ' of ' + ids.length + '…');
+      researchOne({ id: ids[i] }, true).then(function () { done++; }, function () { failed++; }).then(function () { next(i + 1); });
+    }
+    next(0);
+  });
+  document.getElementById('selectStop').addEventListener('click', function () { selectStop = true; this.disabled = true; });
+
   document.getElementById('rows').addEventListener('click', function (e) {
+    var check = e.target.closest('[data-select-lead]');
+    if (check) {
+      // Shift-click selects (or clears) every row between the last click and this one.
+      var index = pageLeadIds.indexOf(check.dataset.selectLead);
+      if (e.shiftKey && lastSelectIndex > -1 && index > -1) {
+        var from = Math.min(lastSelectIndex, index), to = Math.max(lastSelectIndex, index);
+        for (var i = from; i <= to; i++) selectedLeads[pageLeadIds[i]] = check.checked;
+        document.querySelectorAll('[data-select-lead]').forEach(function (box) { box.checked = !!selectedLeads[box.dataset.selectLead]; });
+        if (window.getSelection) window.getSelection().removeAllRanges();
+        updateSelection();
+      }
+      lastSelectIndex = index;
+      return;
+    }
     var enroll = e.target.closest('[data-enroll-lead]');
     if (enroll) { OnyxCampaigns.enroll([enroll.dataset.enrollLead]); return; }
     var tr = e.target.closest('tr[data-id]');
@@ -309,7 +351,8 @@ Onyx.requireAuth(function () {
     panel.hidden = !open; this.setAttribute('aria-expanded', String(open)); this.textContent = open ? 'Hide auto research' : 'Auto research';
   });
 
-  function fieldsFrom(data, lead) {
+  // force: re-research overwrites earlier AI results, but never an email a person typed in.
+  function fieldsFrom(data, lead, force) {
     var map = [
       ['decisionMakerName','dmName'], ['decisionMakerConfidence','dmConfidence'], ['decisionMakerEvidence','dmEvidence'],
       ['email','email'], ['emailStatus','emailStatus'], ['emailConfidence','emailConfidence'], ['sources','sources'],
@@ -318,8 +361,8 @@ Onyx.requireAuth(function () {
     map.forEach(function (pair) {
       var value = data && data[pair[0]];
       if (value === undefined || value === null || value === '' || value === 'Unknown') return;
-      if (['dmName','dmConfidence','dmEvidence'].indexOf(pair[1]) > -1 && lead.dmName && String(lead.dmName).toLowerCase() !== 'unknown') return;
-      if (['email','emailStatus','emailConfidence'].indexOf(pair[1]) > -1 && lead.email) return;
+      if (!force && ['dmName','dmConfidence','dmEvidence'].indexOf(pair[1]) > -1 && lead.dmName && String(lead.dmName).toLowerCase() !== 'unknown') return;
+      if (['email','emailStatus','emailConfidence'].indexOf(pair[1]) > -1 && lead.email && (!force || /^Entered by /i.test(String(lead.emailStatus || '')))) return;
       if (pair[1] === 'sources') value = mergeLines(lead.sources, value);
       fields[pair[1]] = value;
     });
@@ -327,13 +370,13 @@ Onyx.requireAuth(function () {
   }
 
   function mergeLines() { return Array.prototype.slice.call(arguments).filter(Boolean).join('\n'); }
-  function researchOne(summary) {
+  function researchOne(summary, force) {
     return Onyx.sheet('getLead', { id: summary.id }).then(function (full) {
       if (!full.ok) throw new Error(full.error || 'Could not load lead.');
       var lead = full.lead;
       return Onyx.worker('enrichContact', { lead: lead }).then(function (result) {
         if (!result.ok) throw new Error(result.error || 'Owner and email research failed.');
-        var fields = fieldsFrom(result.data || {}, lead);
+        var fields = fieldsFrom(result.data || {}, lead, force);
         if (!lead.stage || lead.stage === 'New Lead') fields.stage = 'Researching';
         return Onyx.sheet('updateLead', { id: lead.id, fields: fields }).then(function (saved) {
           if (!saved.ok) throw new Error(saved.error || 'Could not save owner and email.');
