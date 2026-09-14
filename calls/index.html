@@ -34,6 +34,11 @@
     <section class="dialer-lead" id="card"><p class="empty">Loading…</p></section>
     <section class="dialer-result" id="resultPanel">
       <p class="eyebrow">Log the call</p>
+      <div class="dialer-laser">
+        <span>Laser machine</span>
+        <div class="dialer-laser-pick" id="laserPick"><button type="button" class="btn quiet compact" data-laser="yes">Has laser</button><button type="button" class="btn quiet compact" data-laser="no">No laser</button></div>
+        <small class="hint" id="laserHint"></small>
+      </div>
       <h2 class="dialer-result-title">What happened?</h2>
       <div class="dialer-outcomes" id="outcomes"></div>
       <div class="result-grid dialer-fields">
@@ -83,6 +88,7 @@ Onyx.requireAuth(function () {
     return '<button type="button" class="btn ' + o.cls + ' compact" data-outcome="' + i + '"><kbd>' + (i + 1) + '</kbd>' + Onyx.esc(o.label) + '</button>';
   }).join('');
   $('outcomes').addEventListener('click', function (e) { var b = e.target.closest('[data-outcome]'); if (b) chooseOutcome(Number(b.dataset.outcome)); });
+  $('laserPick').addEventListener('click', function (e) { var b = e.target.closest('[data-laser]'); if (b) setLaser(b.dataset.laser); });
   $('saveCall').addEventListener('click', save);
   $('rebuild').addEventListener('click', loadQueue);
   $('mine').addEventListener('change', loadQueue);
@@ -157,7 +163,7 @@ Onyx.requireAuth(function () {
   }
 
   function showEmpty() {
-    current = null; currentDetail = null; resetForm();
+    current = null; currentDetail = null; resetForm(); renderLaser(null);
     $('card').innerHTML = '<div class="empty-state"><h3>Queue complete</h3><p class="hint">' + (campaignId ? 'Every callable lead in this campaign has been worked.' : 'You have worked through every available lead.') + '</p><button class="btn primary" id="reloadQueue" type="button">Check again</button></div>';
     $('reloadQueue').addEventListener('click', loadQueue);
   }
@@ -181,7 +187,7 @@ Onyx.requireAuth(function () {
         row('Address', [l.street, l.city, l.state, l.zip].filter(Boolean).join(', ')) + row('Email', l.email) +
         row('Rating', l.rating ? l.rating + ' (' + (l.reviewCount || 0) + ' reviews)' : '') + row('Lead score', l.leadScore) +
         row('Buyer type', l.buyerType) + row('Services', l.services) + row('Known equipment', l.existingEquipment) +
-        row('Previous calls', String(l.callAttempts || 0)) + row('Last result', l.callOutcome) +
+        row('Laser machine', l.hasLaser === 'yes' ? 'Has laser' : l.hasLaser === 'no' ? 'No laser' : '') + row('Previous calls', String(l.callAttempts || 0)) + row('Last result', l.callOutcome) +
         row('Callback due', l.nextActionDate ? Onyx.shortDate(l.nextActionDate) : '') + row('Owner', l.owner) +
       '</div>' +
       (calls.length ? '<div class="dialer-activity"><span class="hint">Recent activity</span>' + calls.map(function (a) {
@@ -191,6 +197,26 @@ Onyx.requireAuth(function () {
     var copy = $('copyPhone'); if (copy) copy.addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText(l.phone).then(function () { copy.textContent = 'Copied'; }); });
     if ($('prevLead')) { $('prevLead').addEventListener('click', function () { step(-1); }); $('skipLead').addEventListener('click', function () { step(1); }); }
     $('saveCall').disabled = !selectedOutcome;
+    renderLaser(l);
+  }
+
+  function renderLaser(l) {
+    var value = l ? l.hasLaser || '' : '';
+    Array.prototype.forEach.call($('laserPick').children, function (b) { b.classList.toggle('selected', b.dataset.laser === value); b.disabled = !l; });
+    $('laserHint').textContent = !l ? '' : value ? 'Saved on the lead' : 'Not marked yet' + (l.laserAuto || (current && current.laserAuto) ? ' · research suggests they have one' : '');
+  }
+
+  function setLaser(value) {
+    if (!current) return;
+    var lead = current, next = (currentDetail && currentDetail.id === lead.id ? currentDetail.hasLaser : lead.hasLaser) === value ? '' : value;
+    $('laserHint').textContent = 'Saving…';
+    Onyx.sheet('updateLead', { id: lead.id, fields: { hasLaser: next } }).then(function (r) {
+      if (!r.ok) { $('laserHint').textContent = r.error; return; }
+      queue.forEach(function (x) { if (x.id === lead.id) x.hasLaser = next; });
+      lead.hasLaser = next;
+      if (currentDetail && currentDetail.id === lead.id) currentDetail.hasLaser = next;
+      if (current && current.id === lead.id) renderLaser(currentDetail || lead);
+    });
   }
 
   function dialStarted() {

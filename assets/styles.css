@@ -472,3 +472,9 @@ body.research-queue-on .pipe-select-bar,body.research-queue-on .seq-bulk{bottom:
 .dialer-history{margin-top:22px}
 @media(max-width:1250px){.dialer{grid-template-columns:260px minmax(0,1fr)}.dialer-result{grid-column:1/-1;position:static}}
 @media(max-width:800px){.dialer{grid-template-columns:1fr}.dialer-queue{position:static}.dialer-queue .queue{max-height:260px}.dialer-details{grid-template-columns:1fr}.dialer-stats{grid-template-columns:repeat(3,1fr);row-gap:12px}}
+.dialer-laser{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 12px;margin:10px 0 16px;padding:10px 12px;border:1px solid #e1e6eb;border-radius:6px;background:#f7f9fb}
+.dialer-laser>span{color:#526170;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.055em}
+.dialer-laser-pick{display:grid;grid-template-columns:1fr 1fr;gap:6px}.dialer-laser-pick .btn{justify-content:center}
+.dialer-laser-pick .btn.selected[data-laser="yes"]{background:#0d7a4c;border-color:#0d7a4c;color:#fff}
+.dialer-laser-pick .btn.selected[data-laser="no"]{background:#17212b;border-color:#17212b;color:#fff}
+.dialer-laser small{grid-column:1/-1;font-size:10.5px}
