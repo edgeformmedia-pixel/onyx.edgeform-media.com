@@ -384,7 +384,7 @@ Onyx.requireAuth(function () {
       (String(l.isNationalChain) === 'Yes' ? '<span class="tag chain">national chain</span>' : '') +
       (l.leadScore ? '<span class="' + Onyx.scoreClass(l.leadScore) + '">' + esc(l.leadScore) + '</span>' : '') +
       '<a class="btn quiet compact" href="/email/?id=' + encodeURIComponent(id) + '">Quick email</a>' +
-      (l.phone ? '<a class="btn primary compact" href="/dial-mobile/?id=' + encodeURIComponent(id) + '">Call</a>' : '');
+      (l.phone ? '<a class="btn primary compact" href="' + (window.matchMedia('(min-width: 900px)').matches ? '/calls/' : '/dial-mobile/') + '?id=' + encodeURIComponent(id) + '">Call</a>' : '');
 
     ['dmName', 'dmTitle', 'email', 'dmConfidence', 'directPhone', 'linkedin', 'instagram',
      'owner', 'nextAction'].forEach(function (k) {
@@ -420,7 +420,7 @@ Onyx.requireAuth(function () {
     document.getElementById('links').innerHTML =
       (l.website ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.website) + '">Website</a>' : '') +
       (l.mapsUrl ? '<a class="btn quiet compact" target="_blank" rel="noopener" href="' + esc(l.mapsUrl) + '">Maps</a>' : '') +
-      (l.phone ? '<a class="btn primary compact" href="/dial-mobile/?id=' + encodeURIComponent(id) + '">Call this lead</a>' : '');
+      (l.phone ? '<a class="btn primary compact" href="' + (window.matchMedia('(min-width: 900px)').matches ? '/calls/' : '/dial-mobile/') + '?id=' + encodeURIComponent(id) + '">Call this lead</a>' : '');
 
     if (l.leadScore || l.salesAngle || l.researchSummary || l.emailCandidates || l.phoneCandidates || l.ownerCandidates) {
       document.getElementById('researchPanel').hidden = false;

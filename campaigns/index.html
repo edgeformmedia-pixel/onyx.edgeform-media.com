@@ -478,6 +478,7 @@ Onyx.requireAuth(function (user) {
     document.getElementById('dMeta').textContent = 'From ' + c.fromLocal + '@' + (CFG.SEND_DOMAIN || 'onyxmedicalgroups.com') + ' · ' + (detail.sequence ? detail.sequence.name : '') + ' · created ' + C.localDay(c.createdAt) + ' by ' + (c.createdBy || '');
     var due = members.filter(function (m) { return m.status === 'active' && m.nextDueAt && m.nextDueAt <= today; });
     document.getElementById('dActions').innerHTML =
+      '<a class="btn primary" href="/calls/?campaign=' + encodeURIComponent(c.id) + '">Dial campaign</a>' +
       (c.status === 'active' ? '<button class="btn primary" type="button" data-camp="sendDue"' + (due.length ? '' : ' disabled') + '>Send due (' + due.length + ')</button><button class="btn quiet" type="button" data-camp="paused">Pause campaign</button>' : '') +
       (c.status === 'paused' ? '<button class="btn primary" type="button" data-camp="active">Resume campaign</button>' : '') +
       (c.status === 'archived' ? '<button class="btn quiet" type="button" data-camp="active">Restore</button>' : '<button class="btn quiet" type="button" data-camp="rename">Rename</button><button class="btn quiet" type="button" data-camp="archived">Archive</button>');

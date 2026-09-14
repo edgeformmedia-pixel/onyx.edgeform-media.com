@@ -3,119 +3,269 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Call list · ONYX</title>
+<title>Dialer · ONYX</title>
 <link rel="stylesheet" href="/assets/styles.css">
 </head>
-<body>
+<body class="dialer-page">
 <div id="chrome"></div>
 <div class="wrap">
   <div class="page-head">
-    <div><h1>Call list</h1><p class="hint" id="sub">Due callbacks first, then best score.</p></div>
-    <div class="actions" style="margin:0">
+    <div><p class="eyebrow">Desktop dialer</p><h1 id="dialerTitle">Dialer</h1><p class="hint" id="sub">Loading your call queue…</p></div>
+    <div class="dialer-controls">
+      <label class="dialer-source"><span>Dial</span><select id="source"><option value="">All leads (due callbacks first)</option></select></label>
       <label class="chk"><input type="checkbox" id="mine"> Only mine</label>
-      <button class="btn quiet compact" id="rebuild">Rebuild queue</button>
+      <button class="btn quiet compact" id="rebuild" type="button">Reload queue</button>
     </div>
   </div>
 
-  <div class="callsplit">
-    <ul class="queue" id="queue"></ul>
-    <section class="callcard" id="card">
-      <p class="empty">Pick someone from the queue to start dialing.</p>
+  <section class="dialer-stats" aria-label="Today's performance">
+    <div><b id="dialsToday">0</b><span>Dials today</span></div>
+    <div><b id="answeredToday">0</b><span>Answered</span></div>
+    <div><b id="appointmentsToday">0</b><span>Appointments</span></div>
+    <div><b id="conversionToday">0%</b><span>Set rate</span></div>
+    <div><b id="leftInQueue">0</b><span>Left in queue</span></div>
+  </section>
+
+  <div class="dialer">
+    <aside class="dialer-queue">
+      <div class="dialer-queue-head"><input id="queueSearch" type="search" placeholder="Filter queue"><span class="hint" id="queueCount"></span></div>
+      <ul class="queue" id="queue"><li class="muted" style="padding:14px">Loading…</li></ul>
+    </aside>
+    <section class="dialer-lead" id="card"><p class="empty">Loading…</p></section>
+    <section class="dialer-result" id="resultPanel">
+      <p class="eyebrow">Log the call</p>
+      <h2 class="dialer-result-title">What happened?</h2>
+      <div class="dialer-outcomes" id="outcomes"></div>
+      <div class="result-grid dialer-fields">
+        <label><span>Who answered?</span><select id="answeredBy"><option value="">Select</option><option>Decision maker</option><option>Staff / gatekeeper</option><option>Voicemail</option><option>No one</option><option>Wrong person</option></select></label>
+        <label><span>Contact name</span><input id="contactReached" placeholder="Who did you speak with?"></label>
+        <label><span>Interest</span><select id="interestLevel"><option value="">Select</option><option>Hot</option><option>Warm</option><option>Cold</option><option>Not established</option></select></label>
+        <label><span>Call length</span><select id="callDuration"><option value="">Select</option><option>Under 1 minute</option><option>1–3 minutes</option><option>3–5 minutes</option><option>5–10 minutes</option><option>10+ minutes</option></select></label>
+        <label><span>Main objection</span><select id="callObjection"><option value="">None / unknown</option><option>Price</option><option>Timing</option><option>No budget</option><option>Already has equipment</option><option>Not the decision maker</option><option>Not interested</option><option>Needs more information</option></select></label>
+        <label><span>Next step</span><select id="callNextStep"><option value="">None</option><option>Call back</option><option>Send information</option><option>Send email</option><option>Schedule demo</option><option>Appointment set</option><option>Do not contact</option></select></label>
+        <label><span>Callback date</span><input id="callbackDate" type="date"></label>
+        <label><span>Appointment</span><input id="appointmentAt" type="datetime-local"></label>
+      </div>
+      <label class="result-note"><span>Call notes</span><textarea id="callNote" rows="4" placeholder="Key details, needs, objections, or promises made"></textarea></label>
+      <button class="btn primary full" id="saveCall" type="button" disabled>Save &amp; next lead →</button>
+      <p class="msg" id="dialMsg"></p>
+      <p class="hint dialer-keys"><kbd>C</kbd> call · <kbd>1</kbd>–<kbd>8</kbd> outcome · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> save · <kbd>J</kbd>/<kbd>K</kbd> next/previous</p>
     </section>
   </div>
+
+  <section class="panel dialer-history">
+    <div class="section-title-row"><h2 style="margin:0">Your recent calls</h2><button class="link" id="refreshHistory" type="button">Refresh</button></div>
+    <div id="history"><p class="hint">Loading…</p></div>
+  </section>
 </div>
 
 <script src="/assets/config.js"></script>
 <script src="/assets/onyx.js"></script>
 <script>
 Onyx.requireAuth(function () {
-  var queue = [], current = null;
+  'use strict';
   var OUTCOMES = [
+    { label: 'No answer', stage: '', cls: 'quiet', answeredBy: 'No one' },
+    { label: 'Left voicemail', stage: '', cls: 'quiet', answeredBy: 'Voicemail' },
+    { label: 'Gatekeeper', stage: '', cls: 'quiet', answeredBy: 'Staff / gatekeeper' },
+    { label: 'Hung up', stage: 'Contacted', cls: 'quiet' },
+    { label: 'Call back', stage: 'Contacted', cls: 'quiet', nextStep: 'Call back' },
     { label: 'Interested', stage: 'Interested', cls: 'ok' },
-    { label: 'Not now', stage: 'Contacted', cls: 'quiet' },
-    { label: 'Not interested', stage: 'Lost', cls: 'danger' },
-    { label: 'Left voicemail', stage: '', cls: 'quiet' },
-    { label: 'No answer', stage: '', cls: 'quiet' },
-    { label: 'Gatekeeper', stage: '', cls: 'quiet' },
-    { label: 'Wrong number', stage: 'Do Not Contact', cls: 'danger' }
+    { label: 'Appointment set', stage: 'Demo Booked', cls: 'ok', nextStep: 'Appointment set' },
+    { label: 'Not interested', stage: 'Lost', cls: 'danger', nextStep: 'Do not contact' }
   ];
+  var FIELDS = ['answeredBy', 'contactReached', 'interestLevel', 'callDuration', 'callObjection', 'callNextStep', 'callbackDate', 'appointmentAt', 'callNote'];
+  var queue = [], current = null, currentDetail = null, selectedOutcome = null, saving = false, campaigns = [];
+  var campaignId = Onyx.qs('campaign'), directId = Onyx.qs('id');
+  var $ = function (id) { return document.getElementById(id); };
 
-  load();
-  document.getElementById('rebuild').addEventListener('click', load);
-  document.getElementById('mine').addEventListener('change', load);
-
-  function load() {
-    document.getElementById('queue').innerHTML = '<li class="muted" style="padding:14px">Loading...</li>';
-    Onyx.sheet('callQueue', { mine: document.getElementById('mine').checked, size: 60 }).then(function (r) {
-      if (!r.ok) {
-        document.getElementById('queue').innerHTML = '<li class="muted" style="padding:14px">' + Onyx.esc(r.error) + '</li>';
-        return;
-      }
-      queue = r.queue;
-      document.getElementById('sub').textContent = r.total + ' callable leads · due callbacks first';
-
-      if (!queue.length) {
-        document.getElementById('queue').innerHTML =
-          '<li class="muted" style="padding:16px">Nobody left to call. Nice.</li>';
-        return;
-      }
-
-      document.getElementById('queue').innerHTML = queue.map(function (l, i) {
-        return '<li data-i="' + i + '"><div class="qn">' + Onyx.esc(l.name) + '</div>' +
-          '<div class="qm">' + Onyx.esc(l.city || '') + ' · ' + Onyx.esc(l.phone || 'no phone') +
-          (l.nextActionDate ? ' · <b>due ' + Onyx.shortDate(l.nextActionDate) + '</b>' : '') +
-          ' · score ' + (l.leadScore || '-') + '</div></li>';
-      }).join('');
-    });
-  }
-
-  document.getElementById('queue').addEventListener('click', function (e) {
-    var li = e.target.closest('li[data-i]');
-    if (!li) return;
-    Array.prototype.forEach.call(this.children, function (x) { x.classList.remove('on'); });
-    li.classList.add('on');
-    show(queue[Number(li.dataset.i)]);
+  $('outcomes').innerHTML = OUTCOMES.map(function (o, i) {
+    return '<button type="button" class="btn ' + o.cls + ' compact" data-outcome="' + i + '"><kbd>' + (i + 1) + '</kbd>' + Onyx.esc(o.label) + '</button>';
+  }).join('');
+  $('outcomes').addEventListener('click', function (e) { var b = e.target.closest('[data-outcome]'); if (b) chooseOutcome(Number(b.dataset.outcome)); });
+  $('saveCall').addEventListener('click', save);
+  $('rebuild').addEventListener('click', loadQueue);
+  $('mine').addEventListener('change', loadQueue);
+  $('refreshHistory').addEventListener('click', loadStats);
+  $('queueSearch').addEventListener('input', renderQueue);
+  $('source').addEventListener('change', function () {
+    campaignId = this.value; directId = '';
+    history.replaceState(null, '', '/calls/' + (campaignId ? '?campaign=' + encodeURIComponent(campaignId) : ''));
+    loadQueue();
   });
+  $('queue').addEventListener('click', function (e) { var li = e.target.closest('li[data-id]'); if (li) select(li.dataset.id); });
+  document.addEventListener('keydown', onKey);
 
-  function show(l) {
-    current = l;
-    document.getElementById('card').innerHTML =
-      '<h2 style="font-size:19px">' + Onyx.esc(l.name) + '</h2>' +
-      '<p class="hint">' + Onyx.esc([l.category, l.city, l.buyerType].filter(Boolean).join(' · ')) + '</p>' +
-      '<p class="bignum"><a href="tel:' + Onyx.esc(String(l.phone || '').replace(/\D/g, '')) + '">' +
-        Onyx.esc(l.phone || 'No phone') + '</a></p>' +
-      '<p class="hint">' + (l.dmName
-        ? 'Ask for <b>' + Onyx.esc(l.dmName) + '</b>' + (l.dmTitle ? ' (' + Onyx.esc(l.dmTitle) + ')' : '')
-        : 'Decision maker unknown — ask who handles equipment purchases.') + '</p>' +
-      (l.callAttempts ? '<p class="hint">' + l.callAttempts + ' previous attempts' +
-        (l.callOutcome ? ', last: ' + Onyx.esc(l.callOutcome) : '') + '</p>' : '') +
-      '<div class="outcomes">' + OUTCOMES.map(function (o) {
-        return '<button class="btn ' + o.cls + ' compact out" data-o="' + Onyx.esc(o.label) +
-          '" data-s="' + Onyx.esc(o.stage) + '">' + Onyx.esc(o.label) + '</button>';
-      }).join('') + '</div>' +
-      '<textarea id="note" rows="3" placeholder="What did they say?"></textarea>' +
-      '<div class="actions">' +
-        '<label class="chk">Call back <input type="date" id="cb" style="width:auto"></label>' +
-        '<a class="btn quiet compact" href="/lead/?id=' + encodeURIComponent(l.id) + '">Open full record</a>' +
-      '</div><p class="msg" id="cmsg"></p>';
+  loadCampaigns(); loadQueue(); loadStats();
 
-    Array.prototype.forEach.call(document.querySelectorAll('.out'), function (b) {
-      b.addEventListener('click', function () { save(l, b.dataset.o, b.dataset.s); });
+  function loadCampaigns() {
+    Onyx.sheet('dialerCampaigns', {}).then(function (r) {
+      if (!r.ok) return;
+      campaigns = r.campaigns || [];
+      $('source').innerHTML = '<option value="">All leads (due callbacks first)</option>' + (campaigns.length ? '<optgroup label="Campaigns">' + campaigns.map(function (c) {
+        return '<option value="' + Onyx.esc(c.id) + '">' + Onyx.esc(c.name) + (c.status !== 'active' ? ' (' + Onyx.esc(c.status) + ')' : '') + ' · ' + (c.callable || 0) + ' callable</option>';
+      }).join('') + '</optgroup>' : '');
+      $('source').value = campaignId;
+      if (campaignId && $('source').value !== campaignId) { campaignId = ''; }
+      updateTitle();
     });
   }
 
-  function save(l, outcome, stage) {
-    Onyx.msg('cmsg', 'Saving...');
-    Onyx.sheet('logCall', {
-      id: l.id, outcome: outcome, stage: stage,
-      note: document.getElementById('note').value.trim(),
-      nextActionDate: document.getElementById('cb').value
-    }).then(function (r) {
-      if (!r.ok) { Onyx.msg('cmsg', r.error, 'bad'); return; }
-      Onyx.msg('cmsg', 'Logged.', 'good');
-      setTimeout(load, 500);
+  function campaignName() { var c = campaigns.filter(function (x) { return x.id === campaignId; })[0]; return c ? c.name : ''; }
+  function updateTitle() { $('dialerTitle').textContent = campaignId ? 'Dialing: ' + (campaignName() || 'campaign') : 'Dialer'; }
+
+  function loadQueue() {
+    updateTitle();
+    $('queue').innerHTML = '<li class="muted" style="padding:14px">Loading…</li>';
+    Onyx.sheet('callQueue', { mine: $('mine').checked, campaignId: campaignId, size: campaignId ? 500 : 100 }).then(function (r) {
+      if (!r.ok) { $('queue').innerHTML = '<li class="muted" style="padding:14px">' + Onyx.esc(r.error) + '</li>'; $('sub').textContent = 'Could not load the queue.'; return; }
+      queue = r.queue || [];
+      $('sub').textContent = queue.length
+        ? queue.length + ' leads ready' + (campaignId ? ' in this campaign' : '') + ' · due callbacks first, then best score'
+        : (campaignId ? 'Nobody callable left in this campaign (closed, no phone, or callback scheduled later).' : 'Nobody left to call.');
+      renderQueue();
+      var start = directId && queue.filter(function (l) { return l.id === directId; })[0] ? directId : (queue[0] && queue[0].id);
+      if (directId && !start) start = directId;
+      if (start) select(start); else showEmpty();
     });
   }
+
+  function renderQueue() {
+    var term = $('queueSearch').value.trim().toLowerCase();
+    var list = queue.filter(function (l) { return !term || [l.name, l.city, l.phone, l.dmName].join(' ').toLowerCase().indexOf(term) >= 0; });
+    $('leftInQueue').textContent = queue.length;
+    $('queueCount').textContent = term ? list.length + ' of ' + queue.length : queue.length + ' leads';
+    if (!list.length) { $('queue').innerHTML = '<li class="muted" style="padding:16px">' + (queue.length ? 'No matches.' : 'Queue is empty.') + '</li>'; return; }
+    var today = new Date().toISOString().slice(0, 10);
+    $('queue').innerHTML = list.map(function (l) {
+      var due = l.nextActionDate && Onyx.shortDate(l.nextActionDate) <= today;
+      return '<li data-id="' + Onyx.esc(l.id) + '"' + (current && current.id === l.id ? ' class="on"' : '') + '><div class="qn">' + Onyx.esc(l.name) + '</div>' +
+        '<div class="qm">' + Onyx.esc([l.city, l.phone].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="qm">' + (due ? '<span class="tag chain">Callback due</span> ' : '') + (l.callAttempts ? l.callAttempts + ' tries' + (l.callOutcome ? ' · ' + Onyx.esc(l.callOutcome) : '') : 'Not called yet') + ' · score ' + (l.leadScore || '–') + '</div></li>';
+    }).join('');
+  }
+
+  function select(id) {
+    current = queue.filter(function (l) { return l.id === id; })[0] || { id: id, name: 'Loading…' };
+    currentDetail = null; resetForm(); renderQueue(); renderLead(current, []);
+    var li = $('queue').querySelector('li.on'); if (li) li.scrollIntoView({ block: 'nearest' });
+    Onyx.sheet('getLead', { id: id }).then(function (r) {
+      if (!current || current.id !== id) return;
+      if (!r.ok) { $('card').innerHTML = '<p class="empty">' + Onyx.esc(r.error) + '</p>'; return; }
+      currentDetail = r.lead; renderLead(r.lead, r.activity || []);
+    });
+  }
+
+  function showEmpty() {
+    current = null; currentDetail = null; resetForm();
+    $('card').innerHTML = '<div class="empty-state"><h3>Queue complete</h3><p class="hint">' + (campaignId ? 'Every callable lead in this campaign has been worked.' : 'You have worked through every available lead.') + '</p><button class="btn primary" id="reloadQueue" type="button">Check again</button></div>';
+    $('reloadQueue').addEventListener('click', loadQueue);
+  }
+
+  function renderLead(l, activity) {
+    var phone = String(l.phone || '').replace(/[^\d+]/g, ''), pos = queue.map(function (x) { return x.id; }).indexOf(l.id);
+    var row = function (k, v) { return v ? '<div><span>' + Onyx.esc(k) + '</span><strong>' + Onyx.esc(v) + '</strong></div>' : ''; };
+    var calls = activity.filter(function (a) { return a.type === 'call' || a.type === 'note' || a.type === 'email' || a.type === 'campaign'; }).slice(0, 6);
+    $('card').innerHTML =
+      '<div class="dialer-lead-top"><div><span class="queue-position">' + (pos >= 0 ? 'Lead ' + (pos + 1) + ' of ' + queue.length : 'Selected lead') + (campaignId ? ' · ' + Onyx.esc(campaignName()) : '') + '</span>' +
+        '<h2>' + Onyx.esc(l.name) + '</h2><p class="hint">' + Onyx.esc([l.category, [l.city, l.state].filter(Boolean).join(', '), l.stage].filter(Boolean).join(' · ')) + '</p></div>' +
+        '<div class="dialer-lead-links"><a class="btn quiet compact" href="/lead/?id=' + encodeURIComponent(l.id) + '" target="_blank" rel="noopener">Full record ↗</a>' + (l.website ? '<a class="btn quiet compact" href="' + Onyx.esc(/^https?:/i.test(l.website) ? l.website : 'https://' + l.website) + '" target="_blank" rel="noopener">Website ↗</a>' : '') + '</div></div>' +
+      '<div class="dialer-callbar">' +
+        '<div><span class="hint">Main line</span><div class="bignum">' + Onyx.esc(l.phone || 'No phone') + '</div>' + (l.directPhone ? '<span class="hint">Direct: <a href="tel:' + Onyx.esc(String(l.directPhone).replace(/[^\d+]/g, '')) + '" data-dial>' + Onyx.esc(l.directPhone) + '</a></span>' : '') + '</div>' +
+        '<div class="dialer-callbar-actions">' + (phone ? '<a class="btn primary dialer-call" href="tel:' + Onyx.esc(phone) + '" data-dial><kbd>C</kbd> Call now</a>' : '') +
+          '<button class="btn quiet compact" type="button" id="copyPhone"' + (phone ? '' : ' disabled') + '>Copy number</button>' +
+          (queue.length ? '<button class="btn quiet compact" type="button" id="prevLead">← Prev</button><button class="btn quiet compact" type="button" id="skipLead">Skip →</button>' : '') + '</div></div>' +
+      '<div class="dialer-ask">' + (l.dmName ? 'Ask for <b>' + Onyx.esc(l.dmName) + '</b>' + (l.dmTitle ? ' (' + Onyx.esc(l.dmTitle) + ')' : '') : 'Decision maker unknown — ask who handles equipment purchases.') + '</div>' +
+      ((l.suggestedMessage || l.salesAngle || l.openingAngle) ? '<div class="call-script"><span>' + (l.suggestedMessage ? 'Suggested opener' : 'Sales angle') + '</span><p>' + Onyx.esc(l.suggestedMessage || l.salesAngle || l.openingAngle) + '</p></div>' : '') +
+      '<div class="dialer-details">' +
+        row('Address', [l.street, l.city, l.state, l.zip].filter(Boolean).join(', ')) + row('Email', l.email) +
+        row('Rating', l.rating ? l.rating + ' (' + (l.reviewCount || 0) + ' reviews)' : '') + row('Lead score', l.leadScore) +
+        row('Buyer type', l.buyerType) + row('Services', l.services) + row('Known equipment', l.existingEquipment) +
+        row('Previous calls', String(l.callAttempts || 0)) + row('Last result', l.callOutcome) +
+        row('Callback due', l.nextActionDate ? Onyx.shortDate(l.nextActionDate) : '') + row('Owner', l.owner) +
+      '</div>' +
+      (calls.length ? '<div class="dialer-activity"><span class="hint">Recent activity</span>' + calls.map(function (a) {
+        return '<div><b>' + Onyx.esc(a.type) + '</b> ' + Onyx.esc(a.detail || '') + '<small>' + formatTime(a.at) + (a.user ? ' · ' + Onyx.esc(a.user) : '') + '</small></div>';
+      }).join('') + '</div>' : '');
+    Array.prototype.forEach.call($('card').querySelectorAll('[data-dial]'), function (a) { a.addEventListener('click', dialStarted); });
+    var copy = $('copyPhone'); if (copy) copy.addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText(l.phone).then(function () { copy.textContent = 'Copied'; }); });
+    if ($('prevLead')) { $('prevLead').addEventListener('click', function () { step(-1); }); $('skipLead').addEventListener('click', function () { step(1); }); }
+    $('saveCall').disabled = !selectedOutcome;
+  }
+
+  function dialStarted() {
+    if (!current) return;
+    $('resultPanel').classList.add('live');
+    Onyx.sheet('logDialStart', { id: current.id }).then(loadStats);
+  }
+
+  function step(delta) {
+    if (!queue.length) return;
+    var i = queue.map(function (x) { return x.id; }).indexOf(current && current.id);
+    i = Math.min(queue.length - 1, Math.max(0, i + delta));
+    select(queue[i].id);
+  }
+
+  function chooseOutcome(i) {
+    if (!current) return;
+    selectedOutcome = OUTCOMES[i];
+    Array.prototype.forEach.call($('outcomes').children, function (b, j) { b.classList.toggle('selected', j === i); });
+    if (selectedOutcome.answeredBy) $('answeredBy').value = selectedOutcome.answeredBy;
+    if (selectedOutcome.nextStep) $('callNextStep').value = selectedOutcome.nextStep;
+    $('saveCall').disabled = false;
+    if (selectedOutcome.label === 'Call back' && !$('callbackDate').value) $('callbackDate').focus();
+  }
+
+  function resetForm() {
+    selectedOutcome = null; saving = false;
+    FIELDS.forEach(function (id) { $(id).value = ''; });
+    Array.prototype.forEach.call($('outcomes').children, function (b) { b.classList.remove('selected'); b.disabled = false; });
+    $('saveCall').disabled = true; $('resultPanel').classList.remove('live'); Onyx.msg('dialMsg', '');
+  }
+
+  function save() {
+    if (!current || !selectedOutcome || saving) return;
+    saving = true; $('saveCall').disabled = true; Onyx.msg('dialMsg', 'Saving…');
+    var lead = current, v = function (id) { return $(id).value.trim(); };
+    var details = { answeredBy: v('answeredBy'), interest: v('interestLevel'), duration: v('callDuration'), objection: v('callObjection'), nextStep: v('callNextStep'), contactReached: v('contactReached'), appointmentAt: v('appointmentAt') };
+    Onyx.sheet('logCall', { id: lead.id, outcome: selectedOutcome.label, stage: selectedOutcome.stage, note: v('callNote'), nextAction: details.nextStep, nextActionDate: v('callbackDate'), details: details }).then(function (r) {
+      saving = false;
+      if (!r.ok) { Onyx.msg('dialMsg', r.error, 'bad'); $('saveCall').disabled = false; return; }
+      loadStats();
+      var i = queue.map(function (x) { return x.id; }).indexOf(lead.id);
+      if (i >= 0) queue.splice(i, 1);
+      directId = '';
+      if (!queue.length) { renderQueue(); showEmpty(); return; }
+      select(queue[Math.min(Math.max(i, 0), queue.length - 1)].id);
+      Onyx.msg('dialMsg', 'Saved ' + lead.name + '.', 'good');
+    });
+  }
+
+  function onKey(e) {
+    var typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName);
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); save(); return; }
+    if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[1-8]$/.test(e.key)) { chooseOutcome(Number(e.key) - 1); return; }
+    if (e.key === 'c' || e.key === 'C') { var call = $('card').querySelector('.dialer-call'); if (call) call.click(); return; }
+    if (e.key === 'j') step(1);
+    if (e.key === 'k') step(-1);
+  }
+
+  function dayBounds() { var start = new Date(); start.setHours(0, 0, 0, 0); var end = new Date(start); end.setDate(end.getDate() + 1); return { dayStart: start.toISOString(), dayEnd: end.toISOString() }; }
+  function loadStats() {
+    Onyx.sheet('dialMobileStats', dayBounds()).then(function (r) {
+      if (!r.ok) return;
+      var t = r.today || {};
+      $('dialsToday').textContent = t.dials || 0; $('answeredToday').textContent = t.answered || 0; $('appointmentsToday').textContent = t.appointments || 0;
+      $('conversionToday').textContent = (t.dials ? Math.round((t.appointments || 0) / t.dials * 100) : 0) + '%';
+      var items = r.history || [];
+      $('history').innerHTML = items.length ? '<div class="tablewrap"><table class="grid"><thead><tr><th>When</th><th>Lead</th><th>Result</th><th>Details</th></tr></thead><tbody>' + items.map(function (item) {
+        var parts = String(item.detail || 'Called').split(' — '), outcome = parts.shift();
+        return '<tr><td>' + formatTime(item.at) + '</td><td><a href="/lead/?id=' + encodeURIComponent(item.leadId || '') + '">' + Onyx.esc(item.leadName || 'Lead') + '</a></td><td><b>' + Onyx.esc(outcome) + '</b></td><td class="muted">' + Onyx.esc(parts.join(' — ')) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' : '<p class="hint">Your logged calls will appear here.</p>';
+    });
+  }
+  function formatTime(value) { var d = new Date(value); return isNaN(d) ? '' : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
 });
 </script>
 </body>

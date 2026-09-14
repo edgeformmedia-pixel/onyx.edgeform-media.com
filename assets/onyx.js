@@ -106,7 +106,7 @@ window.Onyx = (function () {
     { href: '/home/', label: 'Home' },
     { href: '/pipeline/', label: 'Pipeline' },
     { href: '/bad-reviewed/', label: 'Bad Reviewed Locations' },
-    { href: '/calls/', label: 'Call list' },
+    { href: '/calls/', label: 'Dialer' },
     { href: '/dial-mobile/', label: 'Dial mobile' },
     { href: '/campaigns/', label: 'Campaigns' },
     { href: '/email/', label: 'Quick email' },
