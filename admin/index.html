@@ -176,7 +176,7 @@ Onyx.requireAuth(function (user) {
       role: document.getElementById('ivRole').value
     }).then(function (r) {
       if (!r.ok) { Onyx.msg('ivMsg', r.error, 'bad'); return; }
-      Onyx.msg('ivMsg', r.emailed ? 'Invite sent.' : 'Invite created but email failed. Link: ' + r.link,
+      Onyx.msg('ivMsg', r.emailed ? 'Invite sent.' : 'Invite created but email failed' + (r.emailError ? ' (' + r.emailError + ')' : '') + '. Link: ' + r.link,
         r.emailed ? 'good' : 'warn');
       document.getElementById('ivEmail').value = '';
       document.getElementById('ivName').value = '';
